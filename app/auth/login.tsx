@@ -1,25 +1,71 @@
 import React, { useState } from 'react';
-import { StyleSheet, View, Text, TextInput, TouchableOpacity, ImageBackground, KeyboardAvoidingView, Platform } from 'react-native';
+import { StyleSheet, View, Text, TextInput, TouchableOpacity, ImageBackground, KeyboardAvoidingView, Platform, Modal, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Mail, Lock, ArrowRight } from 'lucide-react-native';
+import { Mail, Lock, ArrowRight, AlertCircle, Eye, EyeOff } from 'lucide-react-native';
 import { StatusBar } from 'expo-status-bar';
-import { MotiView, MotiText, AnimatePresence } from 'moti';
+import { MotiView, AnimatePresence } from 'moti';
+import { auth } from '../config/firebase'; 
+import { signInWithEmailAndPassword } from 'firebase/auth';
 
 export default function LoginScreen() {
   const router = useRouter();
+  
+  // Form States
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isFocused, setIsFocused] = useState<string | null>(null);
+  const [showPass, setShowPass] = useState(false);
 
-  // Direct redirection to the Home Dashboard
-  const handleLogin = () => {
-    // Replace current route with the Home Dashboard inside the tabs group
-    router.replace('/(tabs)/home' as any);
+  // Validation States
+  const [errors, setErrors] = useState<{ [key: string]: string | null }>({});
+  
+  // Custom Popup State
+  const [modalVisible, setModalVisible] = useState(false);
+  const [modalMsg, setModalMsg] = useState('');
+
+  // Real-time Validation Logic
+  const validateField = (field: string, value: string) => {
+    let errorMsg = null;
+    if (field === 'email') {
+      if (!value.toLowerCase().endsWith('@gmail.com')) {
+        errorMsg = 'Must be a valid @gmail.com address';
+      }
+    } else if (field === 'password') {
+      if (value.length < 6) {
+        errorMsg = 'Password must be at least 6 characters';
+      }
+    }
+    setErrors(prev => ({ ...prev, [field]: errorMsg }));
+  };
+
+  const handleLogin = async () => {
+    if (!email || !password) {
+      setModalMsg('Please enter your credentials to enter the arena.');
+      setModalVisible(true);
+      return;
+    }
+
+    if (errors.email || errors.password) {
+      setModalMsg('Please fix the errors in the fields above.');
+      setModalVisible(true);
+      return;
+    }
+
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+      router.replace('/(tabs)/home' as any);
+    } catch (error: any) {
+      let friendlyMsg = "Something went wrong. Please try again.";
+      if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+        friendlyMsg = "The email or password you entered doesn't match our pro records.";
+      }
+      setModalMsg(friendlyMsg);
+      setModalVisible(true);
+    }
   };
 
   return (
     <ImageBackground 
-      // Multi-sport cinematic background
       source={{ uri: 'https://images.unsplash.com/photo-1504450758481-7338eba7524a?q=80&w=1000' }} 
       style={styles.container}
     >
@@ -28,205 +74,175 @@ export default function LoginScreen() {
       
       <KeyboardAvoidingView 
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.content}
+        style={styles.flexOne}
       >
-        {/* Entrance: Header */}
-        <MotiView 
-          from={{ opacity: 0, translateY: -30 }}
-          animate={{ opacity: 1, translateY: 0 }}
-          transition={{ type: 'timing', duration: 800 }}
-          style={styles.header}
-        >
-          <Text style={styles.title}>ArenaPro</Text>
-          <MotiText 
-            from={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 300 }}
-            style={styles.subtitle}
-          >
-            Where Champions Book. Where Legends Play.
-          </MotiText>
-        </MotiView>
-
-        <View style={styles.inputContainer}>
+        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
           
-          {/* Email Field */}
           <MotiView 
-            from={{ opacity: 0, translateX: -30 }}
-            animate={{ 
-              opacity: 1, 
-              translateX: 0,
-              borderColor: isFocused === 'email' ? '#00FF00' : 'rgba(255, 255, 255, 0.2)',
-              backgroundColor: isFocused === 'email' ? 'rgba(0, 255, 0, 0.03)' : 'transparent',
-            }}
-            transition={{ 
-              opacity: { type: 'timing', duration: 500, delay: 400 },
-              translateX: { type: 'timing', duration: 500, delay: 400 },
-              borderColor: { type: 'timing', duration: 200 },
-              backgroundColor: { type: 'timing', duration: 200 }
-            }}
-            style={styles.inputWrapper}
-          >
-            <Mail color={isFocused === 'email' ? "#00FF00" : "#94A3B8"} size={20} />
-            <TextInput
-              placeholder="Email Address"
-              placeholderTextColor="#64748B"
-              selectionColor="#00FF00" 
-              style={styles.input}
-              value={email}
-              onChangeText={setEmail}
-              onFocus={() => setIsFocused('email')}
-              onBlur={() => setIsFocused(null)}
-              keyboardType="email-address"
-              autoCapitalize="none"
-            />
-            <AnimatePresence>
-              {isFocused === 'email' && (
-                <MotiView 
-                  from={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 25 }}
-                  exit={{ opacity: 0, height: 0 }}
-                  style={styles.activeIndicator}
-                />
-              )}
-            </AnimatePresence>
-          </MotiView>
-
-          {/* Password Field */}
-          <MotiView 
-            from={{ opacity: 0, translateX: -30 }}
-            animate={{ 
-              opacity: 1, 
-              translateX: 0,
-              borderColor: isFocused === 'pass' ? '#00FF00' : 'rgba(255, 255, 255, 0.2)',
-              backgroundColor: isFocused === 'pass' ? 'rgba(0, 255, 0, 0.03)' : 'transparent',
-            }}
-            transition={{ 
-              opacity: { type: 'timing', duration: 500, delay: 550 },
-              translateX: { type: 'timing', duration: 500, delay: 550 },
-              borderColor: { type: 'timing', duration: 200 },
-              backgroundColor: { type: 'timing', duration: 200 }
-            }}
-            style={styles.inputWrapper}
-          >
-            <Lock color={isFocused === 'pass' ? "#00FF00" : "#94A3B8"} size={20} />
-            <TextInput
-              placeholder="Password"
-              placeholderTextColor="#64748B"
-              selectionColor="#00FF00" 
-              style={styles.input}
-              value={password}
-              onChangeText={setPassword}
-              onFocus={() => setIsFocused('pass')}
-              onBlur={() => setIsFocused(null)}
-              secureTextEntry
-            />
-            <AnimatePresence>
-              {isFocused === 'pass' && (
-                <MotiView 
-                  from={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 25 }}
-                  exit={{ opacity: 0, height: 0 }}
-                  style={styles.activeIndicator}
-                />
-              )}
-            </AnimatePresence>
-          </MotiView>
-
-          {/* Login Button */}
-          <MotiView
-            from={{ opacity: 0, translateY: 20 }}
+            from={{ opacity: 0, translateY: -50 }}
             animate={{ opacity: 1, translateY: 0 }}
-            transition={{ delay: 700, type: 'timing', duration: 600 }}
+            transition={{ type: 'timing', duration: 1000 }}
+            style={styles.header}
           >
-            <TouchableOpacity 
-              activeOpacity={0.9}
-              style={styles.loginButton} 
-              onPress={handleLogin}
+            <Text style={styles.title}>ArenaPro</Text>
+            <Text style={styles.subtitle}>Where Champions Book. Where Legends Play.</Text>
+          </MotiView>
+
+          <View style={styles.inputContainer}>
+            
+            <MotiView
+              from={{ opacity: 0, translateX: -20 }}
+              animate={{ opacity: 1, translateX: 0 }}
+              transition={{ type: 'timing', duration: 600, delay: 200 }}
             >
-              <MotiView
-                animate={{ scale: [1, 1.03, 1] }}
-                transition={{ 
-                    loop: true, 
-                    type: 'timing', 
-                    duration: 2000,
-                    delay: 1300 
-                }}
-                style={styles.buttonInner}
-              >
-                <Text style={styles.loginButtonText}>LOGIN TO ARENA</Text>
-                <ArrowRight color="#000000" size={22} strokeWidth={3} />
-              </MotiView>
+              <View style={[styles.inputWrapper, errors.email && styles.errorBorder, isFocused === 'email' && styles.activeBorder]}>
+                <Mail color={errors.email ? "#FF4444" : isFocused === 'email' ? "#00FF00" : "#94A3B8"} size={20} />
+                <TextInput
+                  placeholder="Email Address"
+                  placeholderTextColor="#64748B"
+                  style={styles.input}
+                  value={email}
+                  autoCapitalize="none"
+                  onFocus={() => setIsFocused('email')}
+                  onBlur={() => { setIsFocused(null); validateField('email', email); }}
+                  onChangeText={(text) => { setEmail(text); validateField('email', text); }}
+                />
+              </View>
+              <AnimatePresence>
+                {errors.email && (
+                  <MotiView from={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 25 }} transition={{ type: 'timing', duration: 200 }}>
+                    <Text style={styles.errorText}>{errors.email}</Text>
+                  </MotiView>
+                )}
+              </AnimatePresence>
+            </MotiView>
+
+            <MotiView
+              from={{ opacity: 0, translateX: -20 }}
+              animate={{ opacity: 1, translateX: 0 }}
+              transition={{ type: 'timing', duration: 600, delay: 400 }}
+            >
+              <View style={[styles.inputWrapper, errors.password && styles.errorBorder, isFocused === 'pass' && styles.activeBorder]}>
+                <Lock color={errors.password ? "#FF4444" : isFocused === 'pass' ? "#00FF00" : "#94A3B8"} size={20} />
+                <TextInput
+                  placeholder="Password"
+                  placeholderTextColor="#64748B"
+                  style={styles.input}
+                  value={password}
+                  secureTextEntry={!showPass}
+                  onFocus={() => setIsFocused('pass')}
+                  onBlur={() => { setIsFocused(null); validateField('password', password); }}
+                  onChangeText={(text) => { setPassword(text); validateField('password', text); }}
+                />
+                <TouchableOpacity onPress={() => setShowPass(!showPass)}>
+                  {showPass ? <EyeOff color="#94A3B8" size={20} /> : <Eye color="#94A3B8" size={20} />}
+                </TouchableOpacity>
+              </View>
+              <AnimatePresence>
+                {errors.password && (
+                  <MotiView from={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 25 }} transition={{ type: 'timing', duration: 200 }}>
+                    <Text style={styles.errorText}>{errors.password}</Text>
+                  </MotiView>
+                )}
+              </AnimatePresence>
+            </MotiView>
+
+            <MotiView
+              from={{ opacity: 0, translateY: 20 }}
+              animate={{ opacity: 1, translateY: 0 }}
+              transition={{ type: 'timing', duration: 600, delay: 600 }}
+            >
+              <TouchableOpacity activeOpacity={0.9} style={styles.loginButton} onPress={handleLogin}>
+                <View style={styles.buttonInner}>
+                  <Text style={styles.loginButtonText}>LOGIN TO ARENA</Text>
+                  <ArrowRight color="#000000" size={22} strokeWidth={3} />
+                </View>
+              </TouchableOpacity>
+            </MotiView>
+
+            <MotiView
+              from={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ type: 'timing', duration: 1000, delay: 800 }}
+            >
+              <TouchableOpacity style={styles.footer} onPress={() => router.push('/auth/register')}>
+                <Text style={styles.footerText}>Join the Pro league? <Text style={styles.linkText}>Create Account</Text></Text>
+              </TouchableOpacity>
+            </MotiView>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+
+      <Modal visible={modalVisible} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <MotiView from={{ scale: 0.8, opacity: 0, translateY: 20 }} animate={{ scale: 1, opacity: 1, translateY: 0 }} style={styles.modalBox}>
+            <View style={styles.modalIconBg}><AlertCircle color="#FF4444" size={40} /></View>
+            <Text style={styles.modalTitle}>Authentication Error</Text>
+            <Text style={styles.modalMessage}>{modalMsg}</Text>
+            <TouchableOpacity style={styles.modalButton} onPress={() => setModalVisible(false)}>
+              <Text style={styles.modalButtonText}>TRY AGAIN</Text>
             </TouchableOpacity>
           </MotiView>
         </View>
-
-        {/* Entrance: Footer */}
-        <MotiView 
-          from={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 900, duration: 800 }}
-          style={styles.footer}
-        >
-          <TouchableOpacity onPress={() => router.push('/auth/register')}>
-            <Text style={styles.footerText}>
-              Join the Pro league? <Text style={styles.linkText}>Create Account</Text>
-            </Text>
-          </TouchableOpacity>
-        </MotiView>
-      </KeyboardAvoidingView>
+      </Modal>
     </ImageBackground>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  flexOne: { flex: 1 },
   overlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(7, 10, 20, 0.88)' },
-  content: { flex: 1, justifyContent: 'center', padding: 25 },
+  content: { flexGrow: 1, justifyContent: 'center', padding: 25 },
   header: { marginBottom: 50, alignItems: 'center' },
   title: { fontSize: 52, fontWeight: '900', color: '#FFFFFF', letterSpacing: -1 },
-  subtitle: { fontSize: 16, color: '#94A3B8', marginTop: 5, fontWeight: '500' },
-  inputContainer: { gap: 25 },
+  subtitle: { fontSize: 16, color: '#94A3B8', marginTop: 5, fontWeight: '500', textAlign: 'center' },
+  inputContainer: { gap: 12 },
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: 12,
-    borderWidth: 1,
+    borderRadius: 15,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
     paddingHorizontal: 20,
     height: 70,
     gap: 15,
-    position: 'relative',
   },
+  activeBorder: { borderColor: '#00FF00', backgroundColor: 'rgba(0, 255, 0, 0.03)' },
+  errorBorder: { borderColor: '#FF4444' },
   input: { flex: 1, color: '#FFFFFF', fontSize: 17, height: '100%', fontWeight: '500' },
-  activeIndicator: {
-    position: 'absolute',
-    left: 0,
-    width: 4,
-    backgroundColor: '#00FF00',
-    borderRadius: 2,
-    shadowColor: '#00FF00',
-    shadowOpacity: 1,
-    shadowRadius: 10,
+  
+  // FIXED: No negative margins, added marginTop for clear visibility
+  errorText: {
+    color: '#FF4444',
+    fontSize: 12,
+    fontWeight: '600',
+    marginLeft: 5,
+    marginTop: 5,   // Pushes text down from the border
+    lineHeight: 16, // Ensures the container has enough height
   },
+  
   loginButton: {
     height: 70,
     backgroundColor: '#00FF00',
-    borderRadius: 12,
+    borderRadius: 15,
     marginTop: 15,
     shadowColor: '#00FF00',
     shadowOpacity: 0.5,
     shadowRadius: 15,
     elevation: 8,
   },
-  buttonInner: {
-    flex: 1,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 12,
-  },
+  buttonInner: { flex: 1, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 12 },
   loginButtonText: { color: '#000000', fontSize: 18, fontWeight: '900', letterSpacing: 1 },
   footer: { marginTop: 40, alignItems: 'center' },
   footerText: { color: '#94A3B8', fontSize: 15 },
   linkText: { color: '#00FF00', fontWeight: 'bold' },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.9)', justifyContent: 'center', alignItems: 'center', padding: 30 },
+  modalBox: { width: '100%', backgroundColor: '#1E293B', borderRadius: 30, padding: 30, alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.1)', shadowColor: '#FF4444', shadowOpacity: 0.2, shadowRadius: 20 },
+  modalIconBg: { width: 80, height: 80, borderRadius: 40, backgroundColor: 'rgba(255, 68, 68, 0.1)', justifyContent: 'center', alignItems: 'center', marginBottom: 20 },
+  modalTitle: { color: '#FFFFFF', fontSize: 22, fontWeight: '900' },
+  modalMessage: { color: '#94A3B8', fontSize: 16, textAlign: 'center', marginTop: 12, lineHeight: 24 },
+  modalButton: { backgroundColor: '#FF4444', paddingHorizontal: 40, paddingVertical: 15, borderRadius: 15, marginTop: 30, width: '100%', alignItems: 'center' },
+  modalButtonText: { color: '#FFFFFF', fontWeight: '900', fontSize: 14, letterSpacing: 1 },
 });

@@ -1,38 +1,43 @@
-import React, { useEffect } from 'react';
-import { StyleSheet, View, Text } from 'react-native';
-import Animated, { 
-  useSharedValue, 
-  useAnimatedStyle, 
-  withRepeat, 
-  withTiming, 
-  Easing,
-  withDelay,
-} from 'react-native-reanimated'; 
 import { StatusBar } from 'expo-status-bar';
+import React, { useEffect } from 'react';
+import { StyleSheet, Text, View } from 'react-native';
+import Animated, {
+  Easing,
+  useAnimatedStyle,
+  useSharedValue,
+  withDelay,
+  withTiming,
+} from 'react-native-reanimated';
 
 const APP_NAME = "ARENAPRO";
-const LETTER_WIDTH = 22; 
+const LETTER_WIDTH = 26;
 const TOTAL_WIDTH = APP_NAME.length * LETTER_WIDTH;
-const ANIMATION_DURATION = 1500; // Increased speed from 2000 to 1500ms
+const ANIMATION_DURATION = 2200; 
 
 export default function LoadingScreen() {
-  const ballX = useSharedValue(-(TOTAL_WIDTH / 2)); 
+  // Start the ball exactly at the center of the first letter "A"
+  const ballX = useSharedValue(-(TOTAL_WIDTH / 2) + LETTER_WIDTH / 2);
   const ballRotation = useSharedValue(0);
 
   useEffect(() => {
-    // 1. Snappier typing movement
-    ballX.value = withTiming(TOTAL_WIDTH / 2 + 15, { 
-      duration: ANIMATION_DURATION, 
-      easing: Easing.bezier(0.25, 0.1, 0.25, 1) 
-    });
+    const startDelay = 500;
 
-    // 2. Slower, smoother ball rotation
-    ballRotation.value = withRepeat(
-      withTiming(360, { 
-        duration: 1200, // Slowed down from 600ms to 1200ms
-        easing: Easing.linear 
-      }),
-      -1
+    // 1. Move Ball: Start at "A" and stop one full width AFTER the "O"
+    ballX.value = withDelay(
+      startDelay,
+      withTiming((TOTAL_WIDTH / 2) + (LETTER_WIDTH / 2) + 10, { // Added extra offset to clear the O
+        duration: ANIMATION_DURATION,
+        easing: Easing.bezier(0.4, 0, 0.2, 1), 
+      })
+    );
+
+    // 2. Rotation: Increased degrees for a more natural roll over the longer distance
+    ballRotation.value = withDelay(
+      startDelay,
+      withTiming(900, {
+        duration: ANIMATION_DURATION,
+        easing: Easing.bezier(0.4, 0, 0.2, 1),
+      })
     );
   }, []);
 
@@ -46,37 +51,37 @@ export default function LoadingScreen() {
   return (
     <View style={styles.container}>
       <StatusBar style="light" />
-      
-      <View style={styles.contentRow}>
+
+      <View style={styles.contentWrapper}>
         <View style={styles.textContainer}>
           {APP_NAME.split('').map((letter, index) => (
             <Letter key={index} letter={letter} index={index} />
           ))}
         </View>
 
-        <Animated.View style={[styles.ballWrapper, ballStyle]}>
-          <Text style={{ fontSize: 24 }}>⚽</Text>
-          <View style={styles.ballGlow} />
-        </Animated.View>
+        <View style={styles.ballTrackContainer}>
+          <Animated.View style={[styles.ballWrapper, ballStyle]}>
+            <Text style={styles.ballText}>⚽</Text>
+            <View style={styles.ballGlow} />
+          </Animated.View>
+        </View>
       </View>
     </View>
   );
 }
 
-function Letter({ letter, index }: { letter: string, index: number }) {
+function Letter({ letter, index }: { letter: string; index: number }) {
   const opacity = useSharedValue(0);
-  const scale = useSharedValue(0.8);
+  const scale = useSharedValue(0.5);
 
   useEffect(() => {
-    // Reveal letters slightly faster to match the ball
-    opacity.value = withDelay(
-      index * (ANIMATION_DURATION / APP_NAME.length), 
-      withTiming(1, { duration: 100 })
-    );
-    scale.value = withDelay(
-      index * (ANIMATION_DURATION / APP_NAME.length), 
-      withTiming(1, { duration: 200 })
-    );
+    const startDelay = 500;
+    // Calculate timing so letters appear as the ball center passes over them
+    const singleLetterTime = ANIMATION_DURATION / (APP_NAME.length); 
+    const myDelay = startDelay + index * singleLetterTime;
+
+    opacity.value = withDelay(myDelay, withTiming(1, { duration: 150 }));
+    scale.value = withDelay(myDelay, withTiming(1, { duration: 250 }));
   }, []);
 
   const style = useAnimatedStyle(() => ({
@@ -98,39 +103,51 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  contentRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+  contentWrapper: {
     width: '100%',
+    height: 100,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   textContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
+    zIndex: 1,
+  },
+  ballTrackContainer: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 2,
+    marginTop: 6, // Aligns ball baseline with letters
+  },
+  ballWrapper: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: 40,
+    height: 40,
+  },
+  ballText: {
+    fontSize: 22,
   },
   letterText: {
     fontSize: 28,
     fontWeight: '900',
     color: '#FFFFFF',
+    letterSpacing: 1,
     textShadowColor: '#00FF00',
-    textShadowRadius: 10,
-  },
-  ballWrapper: {
-    position: 'absolute',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 10,
+    textShadowRadius: 15,
   },
   ballGlow: {
     position: 'absolute',
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: 'rgba(0, 255, 0, 0.35)',
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'rgba(0, 255, 0, 0.4)',
     shadowColor: '#00FF00',
     shadowOpacity: 1,
-    shadowRadius: 12,
+    shadowRadius: 20,
     zIndex: -1,
   },
 });

@@ -1,8 +1,9 @@
+import { useColorScheme } from '@/hooks/use-color-scheme';
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { StyleSheet } from 'react-native';
 import 'react-native-reanimated';
-import { useColorScheme } from '@/hooks/use-color-scheme';
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
@@ -10,22 +11,28 @@ export default function RootLayout() {
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
       <Stack screenOptions={{ headerShown: false }}>
-        {/* CRITICAL: index MUST be the first screen listed to play the animation first */}
-        <Stack.Screen name="index" /> 
-        
-        {/* Onboarding Screen */}
-        <Stack.Screen name="onboarding" /> 
+        {/* Entrance Screens */}
+        <Stack.Screen name="index" />
+        <Stack.Screen name="onboarding" />
 
-        {/* Auth Group */}
-        <Stack.Screen name="auth/login" />
-        <Stack.Screen name="auth/register" />
 
-        {/* Tab Group - Only loads after redirection from Login */}
+        <Stack.Screen name="auth/login" options={{ presentation: 'modal' }} />
+        <Stack.Screen name="auth/register" options={{ presentation: 'modal' }} />
+
+        {/* Main App */}
         <Stack.Screen name="(tabs)" />
-
-        <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
+        <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
       </Stack>
       <StatusBar style="light" />
     </ThemeProvider>
   );
 }
+
+const styles = StyleSheet.create({
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#070A14',
+  },
+});

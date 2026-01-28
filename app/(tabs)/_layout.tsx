@@ -56,16 +56,13 @@ export default function TabLayout() {
 const styles = StyleSheet.create({
   tabBar: {
     position: 'absolute',
-    // Adjust bottom spacing based on device
     bottom: Platform.OS === 'ios' ? 30 : 20,
-    // Horizontal margin creates the "floating" effect
-    marginHorizontal: 20,
+    left: 20,
+    right: 20,
     backgroundColor: '#1E293B',
     borderRadius: 35,
-    height: 60,
-    // Fixes the border issue on some devices
+    height: 70,
     borderTopWidth: 0,
-    // Ensures the bar is elevated and visible
     elevation: 5,
     shadowColor: '#000',
     shadowOffset: {
@@ -74,14 +71,15 @@ const styles = StyleSheet.create({
     },
     shadowOpacity: 0.3,
     shadowRadius: 10,
-    // Important: Force icons to stay away from the very edges of the pill
-    paddingHorizontal: 10,
+    paddingBottom: 0,
+    // Flex direction row is default for tab bar, but explicit doesn't hurt if we were overriding
   },
   tabItem: {
-    // This ensures icons are perfectly centered vertically
-    height: -50,
-    paddingTop: Platform.OS === 'android' ? 0 : 0,
+    // Center icons inside the button area
+    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    paddingVertical: 0,
+    marginTop: Platform.OS === 'ios' ? 5 : 0, // Slight optical adjustment for iOS home indicator
   },
 });

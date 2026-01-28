@@ -1,42 +1,18 @@
-import React, { useState } from 'react';
-import { StyleSheet, View, Text, FlatList, TouchableOpacity, Image, Modal, Pressable, Platform } from 'react-native';
-import { Calendar as CalendarIcon, Clock, MapPin, Ticket, X, QrCode } from 'lucide-react-native';
 import { StatusBar } from 'expo-status-bar';
+import { Calendar as CalendarIcon, Clock, MapPin, QrCode, Ticket, X } from 'lucide-react-native';
 import { MotiView } from 'moti';
+import React, { useState } from 'react';
+import { FlatList, Image, Modal, Platform, Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
-// Mock Data
-const UPCOMING_BOOKINGS = [
-  {
-    id: '1',
-    arena: 'Thunderbolt Arena',
-    sport: 'Football',
-    date: 'Jan 22, 2026',
-    time: '06:00 PM - 07:00 PM',
-    location: 'Satellite, Ahmedabad',
-    image: 'https://picsum.photos/id/102/400/300',
-    status: 'Confirmed'
-  }
-];
-
-const PAST_BOOKINGS = [
-  {
-    id: '101',
-    arena: 'Ace Badminton Club',
-    sport: 'Badminton',
-    date: 'Jan 15, 2026',
-    time: '08:00 AM - 09:00 AM',
-    location: 'Bopal, Ahmedabad',
-    image: 'https://picsum.photos/id/43/400/300',
-    status: 'Completed'
-  }
-];
+import { useBookingStore } from '../../store/bookingStore';
 
 export default function BookingsScreen() {
   const [activeTab, setActiveTab] = useState('Upcoming');
   const [showTicket, setShowTicket] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState<any>(null);
 
-  const data = activeTab === 'Upcoming' ? UPCOMING_BOOKINGS : PAST_BOOKINGS;
+  const { upcomingBookings, pastBookings } = useBookingStore();
+  const data = activeTab === 'Upcoming' ? upcomingBookings : pastBookings;
 
   const handleOpenTicket = (booking: any) => {
     setSelectedBooking(booking);
@@ -61,7 +37,7 @@ export default function BookingsScreen() {
           </Text>
         </View>
         <View style={[
-          styles.statusBadge, 
+          styles.statusBadge,
           item.status === 'Confirmed' ? styles.confirmedBg : styles.completedBg
         ]}>
           <Text style={styles.statusText}>
@@ -87,7 +63,7 @@ export default function BookingsScreen() {
         </View>
       </View>
 
-      <TouchableOpacity 
+      <TouchableOpacity
         style={styles.viewTicketBtn}
         onPress={() => handleOpenTicket(item)}
       >
@@ -100,23 +76,23 @@ export default function BookingsScreen() {
   return (
     <View style={styles.container}>
       <StatusBar style="light" />
-      
+
       <View style={styles.header}>
         <Text style={styles.title}>My Bookings</Text>
       </View>
 
       <View style={styles.tabContainer}>
         {['Upcoming', 'History'].map((tab) => (
-          <TouchableOpacity 
+          <TouchableOpacity
             key={tab}
             onPress={() => setActiveTab(tab)}
             style={[
-              styles.tab, 
+              styles.tab,
               activeTab === tab && styles.activeTab
             ]}
           >
             <Text style={[
-              styles.tabText, 
+              styles.tabText,
               activeTab === tab && styles.activeTabText
             ]}>
               {tab}
@@ -140,16 +116,16 @@ export default function BookingsScreen() {
       />
 
       {/* TICKET PASS MODAL */}
-      <Modal 
-        visible={showTicket} 
-        transparent 
+      <Modal
+        visible={showTicket}
+        transparent
         animationType="fade"
       >
-        <Pressable 
-          style={styles.modalOverlay} 
+        <Pressable
+          style={styles.modalOverlay}
           onPress={() => setShowTicket(false)}
         >
-          <MotiView 
+          <MotiView
             from={{ scale: 0.9, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             style={styles.ticketContainer}
@@ -162,9 +138,9 @@ export default function BookingsScreen() {
                   <X color="#94A3B8" size={24} />
                 </TouchableOpacity>
               </View>
-              
+
               <Text style={styles.ticketArena}>{selectedBooking?.arena}</Text>
-              
+
               <View style={styles.ticketRow}>
                 <View>
                   <Text style={styles.label}>DATE</Text>
