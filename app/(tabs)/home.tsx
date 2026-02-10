@@ -1,12 +1,13 @@
-import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, Text, ScrollView, TouchableOpacity, Image, Dimensions, ImageBackground } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { Dimensions, Image, ImageBackground, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 // FIXED: Ensure useRouter is imported here
-import { useRouter } from 'expo-router'; 
-import { Search, MapPin, Bell, Star, ChevronRight, Trophy, Flame, Calendar, Users } from 'lucide-react-native';
+import { useUserLocation } from '@/hooks/useUserLocation';
+import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { doc, getDoc } from 'firebase/firestore';
+import { Bell, Calendar, ChevronRight, Flame, MapPin, Search, Star, Trophy, Users } from 'lucide-react-native';
 import { MotiView } from 'moti';
-import { auth, db } from '../config/firebase'; 
-import { doc, getDoc } from 'firebase/firestore'; 
+import { auth, db } from '../config/firebase';
 
 const { width } = Dimensions.get('window');
 
@@ -19,21 +20,23 @@ const CATEGORIES = [
 
 export default function ArenaHomeScreen() {
   // FIXED: Initialize router inside the component
-  const router = useRouter(); 
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState('Book');
-  const [userName, setUserName] = useState('Champion'); 
-  const [avatar, setAvatar] = useState('https://api.dicebear.com/7.x/avataaars/png?seed=Felix'); 
+  const [userName, setUserName] = useState('Champion');
+  const [avatar, setAvatar] = useState('https://api.dicebear.com/7.x/avataaars/png?seed=Felix');
+
+  const { location, errorMsg, loading: locationLoading } = useUserLocation();
 
   useEffect(() => {
     const fetchUser = async () => {
       try {
         const user = auth.currentUser;
         if (user) {
-          const userDoc = await getDoc(doc(db, "users", user.uid)); 
+          const userDoc = await getDoc(doc(db, "users", user.uid));
           if (userDoc.exists()) {
             const userData = userDoc.data();
-            setUserName((userData.fullName || 'Champion').split(' ')[0]); 
-            if (userData.avatar) setAvatar(userData.avatar); 
+            setUserName((userData.fullName || 'Champion').split(' ')[0]);
+            if (userData.avatar) setAvatar(userData.avatar);
           }
         }
       } catch (error) {
@@ -46,18 +49,20 @@ export default function ArenaHomeScreen() {
   return (
     <View style={styles.container}>
       <StatusBar style="light" />
-      
+
       {/* 1. TOP HEADER BLOCK */}
       <View style={styles.topHeader}>
         <View style={styles.locationSection}>
           <Text style={styles.greetingText}>HELLO, {userName.toUpperCase()}!</Text>
           <View style={styles.locationRow}>
             <MapPin color="#00FF00" size={14} />
-            <Text style={styles.areaText}>South Bopal, Ahmedabad</Text>
+            <Text style={styles.areaText}>
+              {locationLoading ? 'Locating...' : (location?.address?.formatted || 'Location Unavailable')}
+            </Text>
             <ChevronRight color="#00FF00" size={14} />
           </View>
         </View>
-        
+
         <View style={styles.headerIcons}>
           <TouchableOpacity style={styles.iconCircle}>
             <Bell color="#FFFFFF" size={20} />
@@ -70,7 +75,7 @@ export default function ArenaHomeScreen() {
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-        
+
         {/* 2. LIVE STATUS BLOCK */}
         <MotiView from={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} style={styles.liveStatusCard}>
           <View style={styles.liveIndicatorRow}>
@@ -170,7 +175,7 @@ export default function ArenaHomeScreen() {
 function VenueCard({ title, image, dist, rating, price }: any) {
   const router = useRouter();
   return (
-    <TouchableOpacity 
+    <TouchableOpacity
       style={styles.venueCard}
       onPress={() => router.push({
         pathname: "/venue/[id]",
@@ -195,7 +200,7 @@ function VenueCard({ title, image, dist, rating, price }: any) {
 function TrendingCard({ title, image, price, rating }: any) {
   const router = useRouter();
   return (
-    <TouchableOpacity 
+    <TouchableOpacity
       style={styles.trendingCard}
       onPress={() => router.push({
         pathname: "/venue/[id]",
