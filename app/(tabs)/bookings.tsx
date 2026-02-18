@@ -38,9 +38,13 @@ export default function BookingsScreen() {
         </View>
         <View style={[
           styles.statusBadge,
-          item.status === 'Confirmed' ? styles.confirmedBg : styles.completedBg
+          item.status === 'Confirmed' ? styles.confirmedBg : 
+          item.status === 'Cancelled' ? styles.cancelledBg : styles.completedBg
         ]}>
-          <Text style={styles.statusText}>
+          <Text style={[
+            styles.statusText,
+            item.status === 'Cancelled' && styles.cancelledText
+          ]}>
             {item.status}
           </Text>
         </View>
@@ -63,13 +67,34 @@ export default function BookingsScreen() {
         </View>
       </View>
 
-      <TouchableOpacity
-        style={styles.viewTicketBtn}
-        onPress={() => handleOpenTicket(item)}
-      >
-        <Ticket color="#000000" size={18} />
-        <Text style={styles.viewTicketText}>VIEW TICKET</Text>
-      </TouchableOpacity>
+      <View style={styles.actionRow}>
+        <TouchableOpacity
+          style={styles.viewTicketBtn}
+          onPress={() => handleOpenTicket(item)}
+        >
+          <Ticket color="#000000" size={18} />
+          <Text style={styles.viewTicketText}>VIEW TICKET</Text>
+        </TouchableOpacity>
+
+        {activeTab === 'Upcoming' && (
+          <TouchableOpacity 
+            style={styles.cancelBtn}
+            onPress={() => {
+              // Confirm cancellation
+              if (Platform.OS === 'web') {
+                if (confirm('Are you sure you want to cancel this booking?')) {
+                  useBookingStore.getState().cancelBooking(item.id);
+                }
+              } else {
+                 // You might want to use Alert.alert here for native
+                 useBookingStore.getState().cancelBooking(item.id);
+              }
+            }}
+          >
+           <X color="#FF3B30" size={20} />
+          </TouchableOpacity>
+        )}
+      </View>
     </MotiView>
   );
 
@@ -264,10 +289,16 @@ const styles = StyleSheet.create({
   completedBg: {
     backgroundColor: 'rgba(148, 163, 184, 0.1)',
   },
+  cancelledBg: {
+    backgroundColor: 'rgba(255, 59, 48, 0.1)',
+  },
   statusText: {
     color: '#00FF00',
     fontSize: 10,
     fontWeight: '700',
+  },
+  cancelledText: {
+    color: '#FF3B30',
   },
   divider: {
     height: 1,
@@ -286,10 +317,20 @@ const styles = StyleSheet.create({
     color: '#94A3B8',
     fontSize: 14,
   },
+  bookingId: {
+    color: '#94A3B8',
+    fontSize: 12,
+    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+  },
+  actionRow: {
+    flexDirection: 'row',
+    marginTop: 20,
+    gap: 12,
+  },
   viewTicketBtn: {
+    flex: 1,
     flexDirection: 'row',
     backgroundColor: '#00FF00',
-    marginTop: 20,
     height: 50,
     borderRadius: 12,
     justifyContent: 'center',
@@ -300,6 +341,16 @@ const styles = StyleSheet.create({
     color: '#000000',
     fontWeight: '900',
     fontSize: 14,
+  },
+  cancelBtn: {
+    width: 50,
+    height: 50,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255, 59, 48, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center', 
+    borderWidth: 1,
+    borderColor: 'rgba(255, 59, 48, 0.3)',
   },
   emptyState: {
     alignItems: 'center',
@@ -404,10 +455,5 @@ const styles = StyleSheet.create({
     padding: 15,
     borderRadius: 20,
     marginBottom: 15,
-  },
-  bookingId: {
-    color: '#94A3B8',
-    fontSize: 12,
-    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
   },
 });

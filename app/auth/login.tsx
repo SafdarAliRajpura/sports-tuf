@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
-import { StyleSheet, View, Text, TextInput, TouchableOpacity, ImageBackground, KeyboardAvoidingView, Platform, Modal, ScrollView } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
-import { Mail, Lock, ArrowRight, AlertCircle, Eye, EyeOff } from 'lucide-react-native';
 import { StatusBar } from 'expo-status-bar';
-import { MotiView, AnimatePresence } from 'moti';
-import { auth } from '../config/firebase'; 
-import { signInWithEmailAndPassword } from 'firebase/auth';
+import { AlertCircle, ArrowRight, Eye, EyeOff, Lock, Mail } from 'lucide-react-native';
+import { AnimatePresence, MotiView } from 'moti';
+import React, { useState } from 'react';
+import { ActivityIndicator, ImageBackground, KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import api from '../config/api';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -38,6 +38,11 @@ export default function LoginScreen() {
     setErrors(prev => ({ ...prev, [field]: errorMsg }));
   };
 
+
+
+  // Loading State
+  const [loading, setLoading] = useState(false);
+
   const handleLogin = async () => {
     if (!email || !password) {
       setModalMsg('Please enter your credentials to enter the arena.');
@@ -51,16 +56,31 @@ export default function LoginScreen() {
       return;
     }
 
+    setLoading(true);
     try {
-      await signInWithEmailAndPassword(auth, email, password);
-      router.replace('/(tabs)/home' as any);
+      const response = await api.post('/auth/login', {
+        email,
+        password
+      });
+
+      if (response.data && response.data.user) {
+        await AsyncStorage.setItem('userInfo', JSON.stringify(response.data.user));
+        // You can also store a token here if you implement JWT later
+        // await AsyncStorage.setItem('userToken', response.data.token);
+        
+        router.replace('/(tabs)/home' as any);
+      }
     } catch (error: any) {
       let friendlyMsg = "Something went wrong. Please try again.";
-      if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
-        friendlyMsg = "The email or password you entered doesn't match our pro records.";
+      if (error.response && error.response.data && error.response.data.msg) {
+        friendlyMsg = error.response.data.msg;
+      } else if (error.message) {
+         friendlyMsg = error.message;
       }
       setModalMsg(friendlyMsg);
       setModalVisible(true);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -152,11 +172,15 @@ export default function LoginScreen() {
               animate={{ opacity: 1, translateY: 0 }}
               transition={{ type: 'timing', duration: 600, delay: 600 }}
             >
-              <TouchableOpacity activeOpacity={0.9} style={styles.loginButton} onPress={handleLogin}>
-                <View style={styles.buttonInner}>
-                  <Text style={styles.loginButtonText}>LOGIN TO ARENA</Text>
-                  <ArrowRight color="#000000" size={22} strokeWidth={3} />
-                </View>
+              <TouchableOpacity activeOpacity={0.9} style={styles.loginButton} onPress={handleLogin} disabled={loading}>
+                {loading ? (
+                   <ActivityIndicator size="large" color="#000000" />
+                ) : (
+                   <View style={styles.buttonInner}>
+                     <Text style={styles.loginButtonText}>LOGIN TO ARENA</Text>
+                     <ArrowRight color="#000000" size={22} strokeWidth={3} />
+                   </View>
+                )}
               </TouchableOpacity>
             </MotiView>
 
@@ -232,8 +256,10 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.5,
     shadowRadius: 15,
     elevation: 8,
+    justifyContent: 'center', // Center vertically
+    alignItems: 'center',     // Center horizontally
   },
-  buttonInner: { flex: 1, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 12 },
+  buttonInner: {flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 12 },
   loginButtonText: { color: '#000000', fontSize: 18, fontWeight: '900', letterSpacing: 1 },
   footer: { marginTop: 40, alignItems: 'center' },
   footerText: { color: '#94A3B8', fontSize: 15 },

@@ -1,11 +1,12 @@
-import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, Text, TextInput, TouchableOpacity, Image, ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
-import { ArrowLeft, User, Check, Camera, CheckCircle2 } from 'lucide-react-native';
 import { StatusBar } from 'expo-status-bar';
+import { ArrowLeft, Camera, Check, CheckCircle2, User } from 'lucide-react-native';
 import { MotiView } from 'moti';
-import { auth, db } from '../config/firebase';
-import { doc, getDoc, updateDoc } from 'firebase/firestore';
+import React, { useEffect, useState } from 'react';
+import { ActivityIndicator, Image, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+// import { auth, db } from '../config/firebase';
+// import { doc, getDoc, updateDoc } from 'firebase/firestore';
 
 const AVATARS = [
   { id: '1', url: 'https://api.dicebear.com/7.x/avataaars/png?seed=Felix' },
@@ -32,15 +33,13 @@ export default function EditProfileScreen() {
   useEffect(() => {
     const loadUserData = async () => {
       try {
-        const user = auth.currentUser;
-        if (user) {
-          const userDoc = await getDoc(doc(db, "users", user.uid));
-          if (userDoc.exists()) {
-            const data = userDoc.data();
-            setName(data.fullName || '');
-            setSelectedAvatar(data.avatar || AVATARS[0].url);
+          const jsonValue = await AsyncStorage.getItem('userInfo');
+          if (jsonValue != null) {
+            const user = JSON.parse(jsonValue);
+            setName(user.fullName || '');
+            // Check if user's avatar is in our list, if not use the first one or keep it as is
+            setSelectedAvatar(user.avatar || AVATARS[0].url);
           }
-        }
       } catch (error) {
         console.error("Error loading user data:", error);
       } finally {
@@ -54,14 +53,25 @@ export default function EditProfileScreen() {
     if (!name.trim()) return;
     setSaving(true);
     try {
-      const user = auth.currentUser;
-      if (user) {
-        await updateDoc(doc(db, "users", user.uid), {
-          fullName: name,
-          avatar: selectedAvatar,
-        });
+        // Read existing user info to preserve other fields (like email, id)
+        const jsonValue = await AsyncStorage.getItem('userInfo');
+        let updatedUser = {};
+        if (jsonValue != null) {
+            updatedUser = JSON.parse(jsonValue);
+        }
+
+        // Update with new values
+        updatedUser = {
+            ...updatedUser,
+            fullName: name,
+            avatar: selectedAvatar
+        };
+
+        // Save back to AsyncStorage
+        await AsyncStorage.setItem('userInfo', JSON.stringify(updatedUser));
+        
+        // Go back to profile screen
         router.back();
-      }
     } catch (error) {
       console.error("Error updating profile:", error);
     } finally {

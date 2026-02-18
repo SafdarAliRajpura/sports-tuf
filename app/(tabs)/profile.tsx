@@ -1,11 +1,12 @@
-import React, { useEffect, useState } from 'react';
-import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View, Platform, ActivityIndicator } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { ChevronRight, CreditCard, HelpCircle, History, LogOut, Medal, Settings, Trophy, Edit3 } from 'lucide-react-native';
-import { useRouter } from 'expo-router';
-import { auth, db } from '../config/firebase'; 
-import { signOut } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
+import { ChevronRight, CreditCard, Edit3, HelpCircle, History, LogOut, Medal, Settings, Trophy } from 'lucide-react-native';
+import React, { useEffect, useState } from 'react';
+import { ActivityIndicator, Image, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+// import { auth, db } from '../config/firebase'; 
+// import { signOut } from 'firebase/auth';
+// import { doc, getDoc } from 'firebase/firestore';
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -14,29 +15,33 @@ export default function ProfileScreen() {
   const [userData, setUserData] = useState<{ fullName: string; email: string; avatar?: string } | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchUserData = async () => {
-      try {
-        const user = auth.currentUser;
-        if (user) {
-          const userDoc = await getDoc(doc(db, "users", user.uid));
-          if (userDoc.exists()) {
-            setUserData(userDoc.data() as { fullName: string; email: string; avatar?: string });
+  useFocusEffect(
+    React.useCallback(() => {
+      const fetchUserData = async () => {
+        try {
+          const jsonValue = await AsyncStorage.getItem('userInfo');
+          if (jsonValue != null) {
+            setUserData(JSON.parse(jsonValue));
+          } else {
+             // Fallback or redirect to login if no user data found
+             // We won't redirect here immediately to avoid loops if something is wrong, just show empty
           }
+        } catch (error) {
+          console.error("Error fetching user data:", error);
+        } finally {
+          setLoading(false);
         }
-      } catch (error) {
-        console.error("Error fetching user data:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
+      };
 
-    fetchUserData();
-  }, []);
+      fetchUserData();
+    }, [])
+  );
 
   const handleLogout = async () => {
     try {
-      await signOut(auth);
+      await AsyncStorage.removeItem('userInfo');
+      await AsyncStorage.removeItem('userToken');
+      // Navigate to login and reset history
       router.replace('/auth/login');
     } catch (error) {
       console.error("Error signing out: ", error);

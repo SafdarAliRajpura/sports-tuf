@@ -1,12 +1,11 @@
-import React, { useState } from 'react';
-import { StyleSheet, View, Text, TextInput, TouchableOpacity, ImageBackground, KeyboardAvoidingView, Platform, ScrollView, Modal, Image } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Mail, Lock, User, Phone, ArrowLeft, ShieldCheck, AlertCircle, Eye, EyeOff, CheckCircle2 } from 'lucide-react-native';
 import { StatusBar } from 'expo-status-bar';
-import { MotiView, AnimatePresence } from 'moti';
-import { auth, db } from '../config/firebase';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
-import { doc, setDoc } from 'firebase/firestore';
+import { AlertCircle, ArrowLeft, CheckCircle2, Eye, EyeOff, Lock, Mail, Phone, ShieldCheck, User } from 'lucide-react-native';
+import { AnimatePresence, MotiView } from 'moti';
+import React, { useState } from 'react';
+import { Image, ImageBackground, KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import api from '../config/api';
+
 
 // 10 PROFESSIONAL SPORTS & CARTOON AVATARS
 const AVATARS = [
@@ -64,6 +63,8 @@ export default function RegisterScreen() {
     setErrors(prev => ({ ...prev, [field]: errorMsg }));
   };
 
+
+
   const handleRegister = async () => {
     if (!name || !email || !phone || !password || !confirmPassword) {
       setModalMsg('All fields are mandatory to join the pro league.');
@@ -75,19 +76,32 @@ export default function RegisterScreen() {
       setModalVisible(true);
       return;
     }
+
     try {
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      await setDoc(doc(db, "users", userCredential.user.uid), {
+      await api.post('/auth/register', {
         fullName: name,
-        email: email,
-        phone: phone,
-        avatar: selectedAvatar,
-        createdAt: new Date().toISOString(),
+        email,
+        phone,
+        password,
+        avatar: selectedAvatar
       });
-      router.replace('/auth/login');
+      
+      setModalMsg("Welcome to the Pro League! Please log in.");
+      setModalVisible(true);
+
+      setTimeout(() => {
+         setModalVisible(false);
+         router.replace('/auth/login');
+      }, 1500);
+      
     } catch (error: any) {
-      let friendlyMsg = error.message;
-      if (error.code === 'auth/email-already-in-use') friendlyMsg = "This email is already registered.";
+      let friendlyMsg = "Something went wrong. Please try again.";
+      if (error.response && error.response.data && error.response.data.msg) {
+        friendlyMsg = error.response.data.msg;
+      } else if (error.message) {
+         friendlyMsg = `Error: ${error.message}`;
+      }
+      console.error("Registration Error:", error);
       setModalMsg(friendlyMsg);
       setModalVisible(true);
     }

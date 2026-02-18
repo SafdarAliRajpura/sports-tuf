@@ -3,19 +3,39 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { ArrowLeft, CheckCircle, ChevronRight, Coffee, Info, MapPin, ParkingCircle, Share2, Shield, Star, Users, Wifi, X } from 'lucide-react-native';
 import { MotiView } from 'moti';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Dimensions, Image, Modal, ScrollView, Share, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { VENUES } from '../../data/venues';
 
 const { width } = Dimensions.get('window');
 
 import { useBookingStore } from '../../store/bookingStore';
+import api from '../../config/api';
 
 export default function VenueDetailsScreen() {
     const router = useRouter();
     const params = useLocalSearchParams();
     const { id, title } = params;
     const [selectedDate, setSelectedDate] = useState(0);
+
+    // Generate dynamic dates (Next 14 days)
+    const dates = React.useMemo(() => {
+        const days = [];
+        const today = new Date();
+        for (let i = 0; i < 8; i++) {
+            const d = new Date(today);
+            d.setDate(today.getDate() + i);
+            const day = d.getDate();
+            const month = d.toLocaleString('default', { month: 'short' });
+            const year = d.getFullYear();
+            days.push({
+                day: day,
+                month: month,
+                fullDate: `${day} ${month}, ${year}`, // Format: "18 Feb, 2026"
+            });
+        }
+        return days;
+    }, []);
     const [showBookingModal, setShowBookingModal] = useState(false);
     const [showSuccessModal, setShowSuccessModal] = useState(false);
     const [selectedSlots, setSelectedSlots] = useState<string[]>([]);
@@ -44,31 +64,94 @@ export default function VenueDetailsScreen() {
         }
     };
 
-    const handlePayment = () => {
-        // Create a display string for time (e.g. "06:00 PM" or "06:00 PM - 08:00 PM")
+    const [bookedSlots, setBookedSlots] = useState<string[]>([]);
+
+    useEffect(() => {
+        if (showBookingModal) {
+            fetchBookedSlots();
+        }
+    }, [selectedDate, showBookingModal]);
+
+    const fetchBookedSlots = async () => {
+        try {
+            // Use the dynamic date string
+            const dateStr = dates[selectedDate].fullDate;
+            
+            const res = await api.get(`/bookings/filter?turfName=${venueData.title}&date=${dateStr}`);
+            
+            // Assuming backend returns an array of bookings, we extract timeSlots
+            const slots = res.data.map((b: any) => b.timeSlot);
+            
+            // Handle multi-slot bookings (e.g. "06:00 AM & 07:00 AM")
+            const allBookedTimes: string[] = [];
+            slots.forEach((s: string) => {
+                if (s.includes('&')) {
+                    s.split('&').forEach((part: string) => allBookedTimes.push(part.trim()));
+                } else {
+                    allBookedTimes.push(s);
+                }
+            });
+            
+            setBookedSlots(allBookedTimes);
+        } catch (error) {
+            console.log('Error fetching booked slots', error);
+        }
+    };
+
+    const [loading, setLoading] = useState(false);
+
+    const handleBook = async () => {
+        if (selectedSlots.length === 0) return;
+
+        setLoading(true);
+        // Create a display string for time
         const timeDisplay = selectedSlots.sort().map(sid => {
             const slot = TIME_SLOTS.find(s => s.id === sid);
             return slot ? slot.label : sid;
         }).join(' & ');
 
-        const newBooking = {
-            id: Date.now().toString(),
-            arena: venueData.title || title as string,
-            sport: 'Football', // Default to Football or derive from venue type if available
-            date: ['27 Jan', '28 Jan', '29 Jan', '30 Jan', '31 Jan'][selectedDate] + ', 2026',
-            time: timeDisplay,
-            location: venueData.location || 'Ahmedabad',
-            image: (venueData.image as string) || 'https://images.unsplash.com/photo-1574629810360-7efbbe195018?q=80&w=500',
-            status: 'Confirmed'
-        };
+        try {
+            const bookingData = {
+                userId: '65d4c8f9a4b3c2e1d0000002', // Mock User ID
+                turfName: venueData.title || title as string,
+                sport: 'Football',
+                date: dates[selectedDate].fullDate,
+                timeSlot: timeDisplay,
+                price: selectedSlots.length * parseInt(venueData.price.replace('₹', ''))
+            };
 
-        addBooking(newBooking);
+            await api.post('/bookings', bookingData);
+            
+            // Update local store as well for UI consistency if needed
+            const newBooking = {
+                id: Date.now().toString(),
+                arena: bookingData.turfName,
+                sport: bookingData.sport,
+                date: bookingData.date,
+                time: bookingData.timeSlot,
+                location: venueData.location || 'Ahmedabad',
+                image: (venueData.image as string) || 'https://images.unsplash.com/photo-1574629810360-7efbbe195018?q=80&w=500',
+                status: 'Confirmed'
+            };
+            addBooking(newBooking);
 
-        setShowBookingModal(false);
-        setTimeout(() => {
-            setShowSuccessModal(true);
-            setSelectedSlots([]);
-        }, 300);
+            setLoading(false);
+            setShowBookingModal(false);
+            setTimeout(() => {
+                setShowSuccessModal(true);
+                setSelectedSlots([]);
+            }, 300);
+
+        } catch (error: any) {
+            setLoading(false);
+            console.error(error);
+            // Close modal to show alert clearly
+            setShowBookingModal(false);
+            setTimeout(() => {
+                 // Using simple alert as backup
+                 alert(error.response?.data?.msg || 'Booking Failed. Is backend running?');
+            }, 500);
+        }
     };
 
     const venueData: any = VENUES.find(v => v.id === id || v.title === title) || {
@@ -152,14 +235,14 @@ export default function VenueDetailsScreen() {
                     <Text style={styles.sectionTitle}>Select Date</Text>
                 </View>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.dateList}>
-                    {['27 Jan', '28 Jan', '29 Jan', '30 Jan', '31 Jan'].map((date, index) => (
+                    {dates.map((item, index) => (
                         <TouchableOpacity
                             key={index}
                             onPress={() => setSelectedDate(index)}
                             style={[styles.dateCard, selectedDate === index && styles.selectedDateCard]}
                         >
-                            <Text style={[styles.dateText, selectedDate === index && styles.activeDateText]}>{date.split(' ')[0]}</Text>
-                            <Text style={[styles.monthText, selectedDate === index && styles.activeDateText]}>{date.split(' ')[1]}</Text>
+                            <Text style={[styles.dateText, selectedDate === index && styles.activeDateText]}>{item.day}</Text>
+                            <Text style={[styles.monthText, selectedDate === index && styles.activeDateText]}>{item.month}</Text>
                         </TouchableOpacity>
                     ))}
                 </ScrollView>
@@ -229,7 +312,7 @@ export default function VenueDetailsScreen() {
                         <ScrollView contentContainerStyle={styles.slotsGrid} showsVerticalScrollIndicator={false}>
                             {TIME_SLOTS.map((slot) => {
                                 const isSelected = selectedSlots.includes(slot.id);
-                                const isBooked = slot.status === 'booked';
+                                const isBooked = bookedSlots.includes(slot.label) || slot.status === 'booked'; // Check dynamic booking or static
                                 return (
                                     <TouchableOpacity
                                         key={slot.id}
@@ -260,12 +343,12 @@ export default function VenueDetailsScreen() {
                                 </Text>
                             </View>
                             <TouchableOpacity
-                                style={[styles.payButton, selectedSlots.length === 0 && styles.payButtonDisabled]}
-                                disabled={selectedSlots.length === 0}
-                                onPress={handlePayment}
+                                style={[styles.payButton, (selectedSlots.length === 0 || loading) && styles.payButtonDisabled]}
+                                disabled={selectedSlots.length === 0 || loading}
+                                onPress={handleBook}
                             >
-                                <Text style={styles.payButtonText}>CHECKOUT</Text>
-                                <ArrowLeft color="#000" size={20} style={{ transform: [{ rotate: '180deg' }] }} />
+                                <Text style={styles.payButtonText}>{loading ? 'PROCESSING...' : 'CHECKOUT'}</Text>
+                                {!loading && <ArrowLeft color="#000" size={20} style={{ transform: [{ rotate: '180deg' }] }} />}
                             </TouchableOpacity>
                         </View>
                     </MotiView>

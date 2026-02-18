@@ -16,6 +16,7 @@ interface BookingStore {
     upcomingBookings: Booking[];
     pastBookings: Booking[];
     addBooking: (booking: Booking) => void;
+    cancelBooking: (id: string) => void;
 }
 
 export const useBookingStore = create<BookingStore>((set) => ({
@@ -46,4 +47,13 @@ export const useBookingStore = create<BookingStore>((set) => ({
     addBooking: (booking) => set((state) => ({
         upcomingBookings: [booking, ...state.upcomingBookings]
     })),
+    cancelBooking: (id) => set((state) => {
+        const bookingToCancel = state.upcomingBookings.find((b) => b.id === id);
+        if (!bookingToCancel) return state;
+
+        return {
+            upcomingBookings: state.upcomingBookings.filter((b) => b.id !== id),
+            pastBookings: [{ ...bookingToCancel, status: 'Cancelled' }, ...state.pastBookings]
+        };
+    })
 }));
