@@ -1,8 +1,8 @@
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { AlertCircle, ArrowLeft, CheckCircle2, Eye, EyeOff, Lock, Mail, Phone, ShieldCheck, User } from 'lucide-react-native';
-import { AnimatePresence, MotiView } from 'moti';
 import React, { useState } from 'react';
+import Animated, { FadeIn, FadeOut, ZoomIn, ZoomOut, SlideInUp, SlideOutDown, FadeInLeft, FadeInRight, FadeInUp, FadeInDown } from "react-native-reanimated";
 import { Image, ImageBackground, KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import api from '../config/api';
 
@@ -118,22 +118,22 @@ export default function RegisterScreen() {
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.flexOne}>
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
           
-          <MotiView from={{ opacity: 0, translateX: -20 }} animate={{ opacity: 1, translateX: 0 }} transition={{ type: 'timing', duration: 1000 }}>
+          <Animated.View entering={FadeInLeft.duration(1000)} exiting={FadeOut.duration(200)}    >
             <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
               <ArrowLeft color="#00FF00" size={28} />
             </TouchableOpacity>
-          </MotiView>
+          </Animated.View>
 
-          <MotiView from={{ opacity: 0, translateY: -50 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 1000, delay: 100 }} style={styles.header}>
+          <Animated.View entering={FadeInDown.duration(1000).delay(100)} exiting={FadeOut.duration(200)}     style={styles.header}>
             <Text style={styles.title}>Claim Your Spot</Text>
             <Text style={styles.subtitle}>Join the Pro league. Access elite arenas.</Text>
-          </MotiView>
+          </Animated.View>
 
           {/* AVATAR SECTION BLOCK */}
-          <MotiView 
-            from={{ opacity: 0, scale: 0.9, translateY: 20 }} 
-            animate={{ opacity: 1, scale: 1, translateY: 0 }} 
-            transition={{ type: 'timing', duration: 800, delay: 150 }} 
+          <Animated.View entering={FadeInUp.duration(800).delay(150)} exiting={ZoomOut.duration(200)}  
+             
+             
+             
             style={styles.avatarSection}
           >
             <Text style={styles.avatarLabel}>Choose Your Player</Text>
@@ -145,88 +145,88 @@ export default function RegisterScreen() {
                     style={[styles.avatarImg, selectedAvatar === item.url && styles.selectedAvatar]} 
                   />
                   {selectedAvatar === item.url && (
-                    <MotiView from={{ scale: 0 }} animate={{ scale: 1 }} style={styles.checkBadge}>
+                    <Animated.View entering={ZoomIn.duration(300)} exiting={ZoomOut.duration(200)}    style={styles.checkBadge}>
                       <CheckCircle2 color="#00FF00" size={18} fill="#000" />
-                    </MotiView>
+                    </Animated.View>
                   )}
                 </TouchableOpacity>
               ))}
             </ScrollView>
-          </MotiView>
+          </Animated.View>
 
           <View style={styles.inputContainer}>
             {/* FULL NAME */}
-            <MotiView from={{ opacity: 0, translateX: -20 }} animate={{ opacity: 1, translateX: 0 }} transition={{ type: 'timing', duration: 600, delay: 200 }}>
+            <Animated.View entering={FadeInLeft.duration(600).delay(200)} exiting={FadeOut.duration(200)}    >
               <View style={[styles.inputWrapper, errors.name && styles.errorBorder, isFocused === 'name' && styles.activeBorder]}>
                 <User color={errors.name ? "#FF4444" : isFocused === 'name' ? "#00FF00" : "#94A3B8"} size={20} />
                 <TextInput placeholder="Full Name" placeholderTextColor="#64748B" style={styles.input} value={name} onFocus={() => setIsFocused('name')} onBlur={() => { setIsFocused(null); validateField('name', name); }} onChangeText={(text) => { setName(text); validateField('name', text); }} />
               </View>
-              <AnimatePresence>{errors.name && <MotiView from={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 25 }} transition={{ type: 'timing', duration: 200 }}><Text style={styles.errorText}>{errors.name}</Text></MotiView>}</AnimatePresence>
-            </MotiView>
+              {errors.name && <Animated.View entering={FadeIn.duration(200)} exiting={FadeOut.duration(200)}    ><Text style={styles.errorText}>{errors.name}</Text></Animated.View>}
+            </Animated.View>
 
             {/* EMAIL */}
-            <MotiView from={{ opacity: 0, translateX: -20 }} animate={{ opacity: 1, translateX: 0 }} transition={{ type: 'timing', duration: 600, delay: 300 }}>
+            <Animated.View entering={FadeInLeft.duration(600).delay(300)} exiting={FadeOut.duration(200)}    >
               <View style={[styles.inputWrapper, errors.email && styles.errorBorder, isFocused === 'email' && styles.activeBorder]}>
                 <Mail color={errors.email ? "#FF4444" : isFocused === 'email' ? "#00FF00" : "#94A3B8"} size={20} />
                 <TextInput placeholder="Email Address" placeholderTextColor="#64748B" style={styles.input} value={email} autoCapitalize="none" onFocus={() => setIsFocused('email')} onBlur={() => { setIsFocused(null); validateField('email', email); }} onChangeText={(text) => { setEmail(text); validateField('email', text); }} />
               </View>
-              <AnimatePresence>{errors.email && <MotiView from={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 25 }} transition={{ type: 'timing', duration: 200 }}><Text style={styles.errorText}>{errors.email}</Text></MotiView>}</AnimatePresence>
-            </MotiView>
+              {errors.email && <Animated.View entering={FadeIn.duration(200)} exiting={FadeOut.duration(200)}    ><Text style={styles.errorText}>{errors.email}</Text></Animated.View>}
+            </Animated.View>
 
             {/* PHONE */}
-            <MotiView from={{ opacity: 0, translateX: -20 }} animate={{ opacity: 1, translateX: 0 }} transition={{ type: 'timing', duration: 600, delay: 400 }}>
+            <Animated.View entering={FadeInLeft.duration(600).delay(400)} exiting={FadeOut.duration(200)}    >
               <View style={[styles.inputWrapper, errors.phone && styles.errorBorder, isFocused === 'phone' && styles.activeBorder]}>
                 <Phone color={errors.phone ? "#FF4444" : isFocused === 'phone' ? "#00FF00" : "#94A3B8"} size={20} />
                 <TextInput placeholder="Phone Number" placeholderTextColor="#64748B" style={styles.input} value={phone} keyboardType="numeric" onFocus={() => setIsFocused('phone')} onBlur={() => { setIsFocused(null); validateField('phone', phone); }} onChangeText={(text) => { setPhone(text); validateField('phone', text); }} />
               </View>
-              <AnimatePresence>{errors.phone && <MotiView from={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 25 }} transition={{ type: 'timing', duration: 200 }}><Text style={styles.errorText}>{errors.phone}</Text></MotiView>}</AnimatePresence>
-            </MotiView>
+              {errors.phone && <Animated.View entering={FadeIn.duration(200)} exiting={FadeOut.duration(200)}    ><Text style={styles.errorText}>{errors.phone}</Text></Animated.View>}
+            </Animated.View>
 
             {/* PASSWORD */}
-            <MotiView from={{ opacity: 0, translateX: -20 }} animate={{ opacity: 1, translateX: 0 }} transition={{ type: 'timing', duration: 600, delay: 500 }}>
+            <Animated.View entering={FadeInLeft.duration(600).delay(500)} exiting={FadeOut.duration(200)}    >
               <View style={[styles.inputWrapper, errors.password && styles.errorBorder, isFocused === 'pass' && styles.activeBorder]}>
                 <Lock color={errors.password ? "#FF4444" : isFocused === 'pass' ? "#00FF00" : "#94A3B8"} size={20} />
                 <TextInput placeholder="Password" placeholderTextColor="#64748B" style={styles.input} value={password} secureTextEntry={!showPass} onFocus={() => setIsFocused('pass')} onBlur={() => { setIsFocused(null); validateField('password', password); }} onChangeText={(text) => { setPassword(text); validateField('password', text); }} />
                 <TouchableOpacity onPress={() => setShowPass(!showPass)}>{showPass ? <EyeOff color="#94A3B8" size={20} /> : <Eye color="#94A3B8" size={20} />}</TouchableOpacity>
               </View>
-              <AnimatePresence>{errors.password && <MotiView from={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 25 }} transition={{ type: 'timing', duration: 200 }}><Text style={styles.errorText}>{errors.password}</Text></MotiView>}</AnimatePresence>
-            </MotiView>
+              {errors.password && <Animated.View entering={FadeIn.duration(200)} exiting={FadeOut.duration(200)}    ><Text style={styles.errorText}>{errors.password}</Text></Animated.View>}
+            </Animated.View>
 
             {/* CONFIRM PASSWORD */}
-            <MotiView from={{ opacity: 0, translateX: -20 }} animate={{ opacity: 1, translateX: 0 }} transition={{ type: 'timing', duration: 600, delay: 600 }}>
+            <Animated.View entering={FadeInLeft.duration(600).delay(600)} exiting={FadeOut.duration(200)}    >
               <View style={[styles.inputWrapper, errors.confirm && styles.errorBorder, isFocused === 'confirm' && styles.activeBorder]}>
                 <ShieldCheck color={errors.confirm ? "#FF4444" : isFocused === 'confirm' ? "#00FF00" : "#94A3B8"} size={20} />
                 <TextInput placeholder="Confirm Password" placeholderTextColor="#64748B" style={styles.input} value={confirmPassword} secureTextEntry={!showConfirmPass} onFocus={() => setIsFocused('confirm')} onBlur={() => { setIsFocused(null); validateField('confirm', confirmPassword); }} onChangeText={(text) => { setConfirmPassword(text); validateField('confirm', text); }} />
                 <TouchableOpacity onPress={() => setShowConfirmPass(!showConfirmPass)}>{showConfirmPass ? <EyeOff color="#94A3B8" size={20} /> : <Eye color="#94A3B8" size={20} />}</TouchableOpacity>
               </View>
-              <AnimatePresence>{errors.confirm && <MotiView from={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 25 }} transition={{ type: 'timing', duration: 200 }}><Text style={styles.errorText}>{errors.confirm}</Text></MotiView>}</AnimatePresence>
-            </MotiView>
+              {errors.confirm && <Animated.View entering={FadeIn.duration(200)} exiting={FadeOut.duration(200)}    ><Text style={styles.errorText}>{errors.confirm}</Text></Animated.View>}
+            </Animated.View>
 
             {/* REGISTER BUTTON */}
-            <MotiView from={{ opacity: 0, translateY: 20 }} animate={{ opacity: 1, translateY: 0 }} transition={{ type: 'timing', duration: 600, delay: 750 }}>
+            <Animated.View entering={FadeInUp.duration(600).delay(750)} exiting={FadeOut.duration(200)}    >
               <TouchableOpacity activeOpacity={0.9} style={styles.registerButton} onPress={handleRegister}>
                 <Text style={styles.registerButtonText}>CREATE PRO ACCOUNT</Text>
               </TouchableOpacity>
-            </MotiView>
+            </Animated.View>
 
             {/* FOOTER */}
-            <MotiView from={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ type: 'timing', duration: 1000, delay: 900 }}>
+            <Animated.View entering={FadeIn.duration(1000).delay(900)} exiting={FadeOut.duration(200)}    >
               <TouchableOpacity style={styles.footer} onPress={() => router.push('/auth/login')}>
                 <Text style={styles.footerText}>Already a member? <Text style={styles.linkText}>Log In</Text></Text>
               </TouchableOpacity>
-            </MotiView>
+            </Animated.View>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
 
       <Modal visible={modalVisible} transparent animationType="fade">
         <View style={styles.modalOverlay}>
-          <MotiView from={{ scale: 0.8, opacity: 0, translateY: 20 }} animate={{ scale: 1, opacity: 1, translateY: 0 }} style={styles.modalBox}>
+          <Animated.View entering={FadeInUp.duration(300)} exiting={ZoomOut.duration(200)}    style={styles.modalBox}>
             <View style={styles.modalIconBg}><AlertCircle color="#FF4444" size={40} /></View>
             <Text style={styles.modalTitle}>Registration Error</Text>
             <Text style={styles.modalMessage}>{modalMsg}</Text>
             <TouchableOpacity style={styles.modalButton} onPress={() => setModalVisible(false)}><Text style={styles.modalButtonText}>TRY AGAIN</Text></TouchableOpacity>
-          </MotiView>
+          </Animated.View>
         </View>
       </Modal>
     </ImageBackground>

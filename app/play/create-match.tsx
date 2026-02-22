@@ -1,9 +1,9 @@
 import { useRouter } from 'expo-router';
 import { ArrowLeft, Calendar, Clock, MapPin, Users, DollarSign, ChevronDown, Check, Search, X, CheckCircle } from 'lucide-react-native';
 import React, { useState } from 'react';
+import Animated, { FadeIn, FadeOut, ZoomIn, ZoomOut, SlideInUp, SlideOutDown, FadeInLeft, FadeInRight, FadeInUp, FadeInDown } from "react-native-reanimated";
 import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, Alert, Modal, FlatList } from 'react-native';
 import api from '../../config/api';
-import { MotiView } from 'moti';
 // @ts-ignore
 import { VENUES } from '../../data/venues';
 
@@ -216,10 +216,10 @@ export default function CreateMatchScreen() {
       {/* SUCCESS MODAL */}
       <Modal visible={showSuccess} transparent animationType="fade">
         <View style={styles.successOverlay}>
-          <MotiView 
-            from={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ type: 'timing', duration: 250 }}
+          <Animated.View entering={ZoomIn.duration(250)} exiting={ZoomOut.duration(200)}  
+            
+            
+            
             style={styles.successCard}
           >
             <View style={styles.successIconOuter}>
@@ -239,7 +239,7 @@ export default function CreateMatchScreen() {
             >
               <Text style={styles.successButtonText}>CONTINUE</Text>
             </TouchableOpacity>
-          </MotiView>
+          </Animated.View>
         </View>
       </Modal>
 

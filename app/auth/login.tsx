@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { AlertCircle, ArrowRight, Eye, EyeOff, Lock, Mail } from 'lucide-react-native';
-import { AnimatePresence, MotiView } from 'moti';
+import Animated, { FadeIn, FadeOut, ZoomIn, ZoomOut, SlideInUp, SlideOutDown, FadeInLeft, FadeInRight, FadeInUp, FadeInDown } from "react-native-reanimated";
 import React, { useState } from 'react';
 import { ActivityIndicator, ImageBackground, KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import api from '../config/api';
@@ -22,6 +22,7 @@ export default function LoginScreen() {
   // Custom Popup State
   const [modalVisible, setModalVisible] = useState(false);
   const [modalMsg, setModalMsg] = useState('');
+  const [isBanned, setIsBanned] = useState(false);
 
   // Real-time Validation Logic
   const validateField = (field: string, value: string) => {
@@ -57,6 +58,7 @@ export default function LoginScreen() {
     }
 
     setLoading(true);
+    setIsBanned(false);
     try {
       const response = await api.post('/auth/login', {
         email,
@@ -72,7 +74,10 @@ export default function LoginScreen() {
       }
     } catch (error: any) {
       let friendlyMsg = "Something went wrong. Please try again.";
-      if (error.response && error.response.data && error.response.data.msg) {
+      if (error.response && error.response.status === 403) {
+         setIsBanned(true);
+         friendlyMsg = error.response.data.msg || "Your account has been suspended by the administrator.";
+      } else if (error.response && error.response.data && error.response.data.msg) {
         friendlyMsg = error.response.data.msg;
       } else if (error.message) {
          friendlyMsg = error.message;
@@ -98,22 +103,20 @@ export default function LoginScreen() {
       >
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
           
-          <MotiView 
-            from={{ opacity: 0, translateY: -50 }}
-            animate={{ opacity: 1, translateY: 0 }}
-            transition={{ type: 'timing', duration: 1000 }}
+          <Animated.View 
+            entering={FadeInDown.duration(1000)}
+            exiting={FadeOut.duration(200)}
             style={styles.header}
           >
             <Text style={styles.title}>ArenaPro</Text>
             <Text style={styles.subtitle}>Where Champions Book. Where Legends Play.</Text>
-          </MotiView>
+          </Animated.View>
 
           <View style={styles.inputContainer}>
             
-            <MotiView
-              from={{ opacity: 0, translateX: -20 }}
-              animate={{ opacity: 1, translateX: 0 }}
-              transition={{ type: 'timing', duration: 600, delay: 200 }}
+            <Animated.View
+              entering={FadeInLeft.duration(600).delay(200)}
+              exiting={FadeOut.duration(200)}
             >
               <View style={[styles.inputWrapper, errors.email && styles.errorBorder, isFocused === 'email' && styles.activeBorder]}>
                 <Mail color={errors.email ? "#FF4444" : isFocused === 'email' ? "#00FF00" : "#94A3B8"} size={20} />
@@ -128,19 +131,16 @@ export default function LoginScreen() {
                   onChangeText={(text) => { setEmail(text); validateField('email', text); }}
                 />
               </View>
-              <AnimatePresence>
-                {errors.email && (
-                  <MotiView from={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 25 }} transition={{ type: 'timing', duration: 200 }}>
-                    <Text style={styles.errorText}>{errors.email}</Text>
-                  </MotiView>
-                )}
-              </AnimatePresence>
-            </MotiView>
+              {errors.email && (
+                <Animated.View entering={FadeIn.duration(200)} exiting={FadeOut.duration(200)}>
+                  <Text style={styles.errorText}>{errors.email}</Text>
+                </Animated.View>
+              )}
+            </Animated.View>
 
-            <MotiView
-              from={{ opacity: 0, translateX: -20 }}
-              animate={{ opacity: 1, translateX: 0 }}
-              transition={{ type: 'timing', duration: 600, delay: 400 }}
+            <Animated.View
+              entering={FadeInLeft.duration(600).delay(400)}
+              exiting={FadeOut.duration(200)}
             >
               <View style={[styles.inputWrapper, errors.password && styles.errorBorder, isFocused === 'pass' && styles.activeBorder]}>
                 <Lock color={errors.password ? "#FF4444" : isFocused === 'pass' ? "#00FF00" : "#94A3B8"} size={20} />
@@ -158,19 +158,16 @@ export default function LoginScreen() {
                   {showPass ? <EyeOff color="#94A3B8" size={20} /> : <Eye color="#94A3B8" size={20} />}
                 </TouchableOpacity>
               </View>
-              <AnimatePresence>
-                {errors.password && (
-                  <MotiView from={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 25 }} transition={{ type: 'timing', duration: 200 }}>
-                    <Text style={styles.errorText}>{errors.password}</Text>
-                  </MotiView>
-                )}
-              </AnimatePresence>
-            </MotiView>
+              {errors.password && (
+                <Animated.View entering={FadeIn.duration(200)} exiting={FadeOut.duration(200)}>
+                  <Text style={styles.errorText}>{errors.password}</Text>
+                </Animated.View>
+              )}
+            </Animated.View>
 
-            <MotiView
-              from={{ opacity: 0, translateY: 20 }}
-              animate={{ opacity: 1, translateY: 0 }}
-              transition={{ type: 'timing', duration: 600, delay: 600 }}
+            <Animated.View
+              entering={FadeInUp.duration(600).delay(600)}
+              exiting={FadeOut.duration(200)}
             >
               <TouchableOpacity activeOpacity={0.9} style={styles.loginButton} onPress={handleLogin} disabled={loading}>
                 {loading ? (
@@ -182,31 +179,36 @@ export default function LoginScreen() {
                    </View>
                 )}
               </TouchableOpacity>
-            </MotiView>
+            </Animated.View>
 
-            <MotiView
-              from={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ type: 'timing', duration: 1000, delay: 800 }}
+            <Animated.View
+              entering={FadeIn.duration(1000).delay(800)}
+              exiting={FadeOut.duration(200)}
             >
               <TouchableOpacity style={styles.footer} onPress={() => router.push('/auth/register')}>
                 <Text style={styles.footerText}>Join the Pro league? <Text style={styles.linkText}>Create Account</Text></Text>
               </TouchableOpacity>
-            </MotiView>
+            </Animated.View>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
 
       <Modal visible={modalVisible} transparent animationType="fade">
         <View style={styles.modalOverlay}>
-          <MotiView from={{ scale: 0.8, opacity: 0, translateY: 20 }} animate={{ scale: 1, opacity: 1, translateY: 0 }} style={styles.modalBox}>
-            <View style={styles.modalIconBg}><AlertCircle color="#FF4444" size={40} /></View>
-            <Text style={styles.modalTitle}>Authentication Error</Text>
+          <Animated.View entering={FadeInUp.duration(300)} exiting={ZoomOut.duration(200)} style={styles.modalBox}>
+            <View style={[styles.modalIconBg, isBanned && { backgroundColor: 'rgba(245, 158, 11, 0.1)' }]}>
+              <AlertCircle color={isBanned ? "#F59E0B" : "#FF4444"} size={40} />
+            </View>
+            <Text style={styles.modalTitle}>
+              {isBanned ? 'Account Suspended' : 'Authentication Error'}
+            </Text>
             <Text style={styles.modalMessage}>{modalMsg}</Text>
-            <TouchableOpacity style={styles.modalButton} onPress={() => setModalVisible(false)}>
-              <Text style={styles.modalButtonText}>TRY AGAIN</Text>
+            <TouchableOpacity style={[styles.modalButton, isBanned && { backgroundColor: '#F59E0B' }]} onPress={() => setModalVisible(false)}>
+              <Text style={styles.modalButtonText}>
+                {isBanned ? 'CONTACT SUPPORT' : 'TRY AGAIN'}
+              </Text>
             </TouchableOpacity>
-          </MotiView>
+          </Animated.View>
         </View>
       </Modal>
     </ImageBackground>

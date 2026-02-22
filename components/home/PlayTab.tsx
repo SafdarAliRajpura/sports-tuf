@@ -1,14 +1,21 @@
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Clock, MapPin, Plus, UserPlus, Users, Search, CheckCircle } from 'lucide-react-native';
-import { MotiView } from 'moti';
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useState, useEffect } from 'react';
+import Animated, { FadeIn, FadeOut, ZoomIn, ZoomOut, SlideInUp, SlideOutDown, FadeInLeft, FadeInRight, FadeInUp, FadeInDown } from "react-native-reanimated";
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View, ActivityIndicator, Alert } from 'react-native';
 import api from '../../config/api';
 
-export default function PlayTab() {
+export default function PlayTab({ initialSport }: { initialSport?: string }) {
   const router = useRouter();
   const [filter, setFilter] = useState('All');
   const filters = ['All', 'Football', 'Cricket', 'Badminton'];
+
+  useEffect(() => {
+    if (initialSport) {
+      console.log('Setting filter to:', initialSport);
+      setFilter(initialSport);
+    }
+  }, [initialSport]);
 
   const [matches, setMatches] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -34,13 +41,17 @@ export default function PlayTab() {
   const handleJoin = async (matchId: string) => {
     setJoiningId(matchId);
     try {
-      // Use a fake user ID for joining
-      await api.put(`/matches/${matchId}/join`, { userId: '65d4c8f9a4b3c2e1d0000002' });
+      // Use a DIFFERENT fake user ID for joining to simulate another player
+      // This allows testing "Join" even if I created the match (as long as backend doesn't block host from joining again, but host is already in list)
+      // Actually, if I created it, I am already in the list.
+      // If I want to join as a guest, I must use a DIFFERENT ID.
+      const guestId = '65d4c8f9a4b3c2e1d0000003'; 
+      await api.put(`/matches/${matchId}/join`, { userId: guestId });
       
       // Update local state to reflect join
       setMatches(prev => prev.map((m: any) => 
         m._id === matchId 
-          ? { ...m, playersJoined: [...m.playersJoined, 'Me'], playersJoinedCount: m.playersJoined.length + 1 } 
+          ? { ...m, playersJoined: [...m.playersJoined, { _id: guestId, fullName: 'Guest' }], playersJoinedCount: m.playersJoined.length + 1 } 
           : m
       ));
       
@@ -111,16 +122,23 @@ export default function PlayTab() {
             filteredMatches.map((match: any, index) => {
               // ... existing mapping logic
 
+              const currentUserId = '65d4c8f9a4b3c2e1d0000002'; // Mock Host ID
+              const guestId = '65d4c8f9a4b3c2e1d0000003'; // Mock Guest ID
               const joinedCount = match.playersJoined ? match.playersJoined.length : 0;
               const isFull = joinedCount >= match.playersTotal;
-              const isJoined = match.playersJoined?.some((p: any) => p === 'Me' || p._id === '65d4c8f9a4b3c2e1d0000002'); // Check mock ID
+              
+              const isJoined = match.playersJoined?.some((p: any) => {
+                  const pid = typeof p === 'object' ? p._id : p;
+                  // Check if either my Host Identity OR Guest Identity is in the match
+                  return pid === currentUserId || pid === guestId || p === 'Me';
+              });
 
               return (
-                <MotiView 
+                <Animated.View entering={FadeInUp.duration(300)} exiting={FadeOut.duration(200)}  
                   key={match._id}
-                  from={{ opacity: 0, translateY: 10 }}
-                  animate={{ opacity: 1, translateY: 0 }}
-                  transition={{ delay: index * 100 }}
+                  
+                  
+                  
                   style={styles.lobbyCard}
                 >
                   <View style={styles.cardHeader}>
@@ -148,7 +166,7 @@ export default function PlayTab() {
                   </View>
   
                   <View style={styles.hostRow}>
-                    <Text style={styles.hostText}>Hosted by <Text style={styles.hostName}>{match.host?.fullName || 'User'}</Text></Text>
+                    <Text style={styles.hostText}>Hosted by <Text style={styles.hostName}>{match.host?.fullName || 'Unknown Host'}</Text></Text>
                     
                     {isJoined ? (
                       <View style={styles.joinedBadge}>
@@ -167,7 +185,7 @@ export default function PlayTab() {
                       </TouchableOpacity>
                     )}
                   </View>
-                </MotiView>
+                </Animated.View>
               );
             })
           )}

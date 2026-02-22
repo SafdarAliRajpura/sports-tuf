@@ -1,0 +1,1 @@
+app/admin/layouts/AdminLayout.tsx(109,49): error TS2339: Property 'userDetails' does not exist on type '{ container: any; ambientGlow: any; layoutWrapper: { flex: number; flexDirection: "row"; }; sidebar: { backgroundColor: string; borderRightWidth: number; borderRightColor: string; display: "flex"; flexDirection: "column"; }; ... 27 more ...; contentArea: { ...; }; }'.

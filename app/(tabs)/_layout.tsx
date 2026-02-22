@@ -1,6 +1,6 @@
 import { HapticTab } from '@/components/ui/HapticTab';
 import { Tabs } from 'expo-router';
-import { Calendar, Home, Search, User } from 'lucide-react-native';
+import { Feather } from '@expo/vector-icons';
 import React from 'react';
 import { Platform, StyleSheet } from 'react-native';
 
@@ -22,7 +22,7 @@ export default function TabLayout() {
         name="home"
         options={{
           title: 'Home',
-          tabBarIcon: ({ color }) => <Home size={24} color={color} />,
+          tabBarIcon: ({ color }) => <Feather name="home" size={24} color={color} />,
         }}
       />
 
@@ -30,7 +30,7 @@ export default function TabLayout() {
         name="explore"
         options={{
           title: 'Explore',
-          tabBarIcon: ({ color }) => <Search size={24} color={color} />,
+          tabBarIcon: ({ color }) => <Feather name="search" size={24} color={color} />,
         }}
       />
 
@@ -38,7 +38,7 @@ export default function TabLayout() {
         name="bookings"
         options={{
           title: 'Bookings',
-          tabBarIcon: ({ color }) => <Calendar size={24} color={color} />,
+          tabBarIcon: ({ color }) => <Feather name="calendar" size={24} color={color} />,
         }}
       />
 
@@ -46,7 +46,7 @@ export default function TabLayout() {
         name="profile"
         options={{
           title: 'Profile',
-          tabBarIcon: ({ color }) => <User size={24} color={color} />,
+          tabBarIcon: ({ color }) => <Feather name="user" size={24} color={color} />,
         }}
       />
     </Tabs>

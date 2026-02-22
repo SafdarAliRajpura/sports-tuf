@@ -5,8 +5,24 @@ import { Dimensions, Image, ImageBackground, ScrollView, StyleSheet, Text, Touch
 import { useUserLocation } from '@/hooks/useUserLocation';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { Bell, Calendar, ChevronRight, Crown, Flame, MapPin, Medal, Search, Star, Trophy, Users } from 'lucide-react-native';
-import { MotiView } from 'moti';
+import { Feather, FontAwesome5 } from '@expo/vector-icons';
+
+const Bell = (props: any) => <Feather name="bell" {...props} />;
+const Calendar = (props: any) => <Feather name="calendar" {...props} />;
+const ChevronRight = (props: any) => <Feather name="chevron-right" {...props} />;
+const Crown = (props: any) => <FontAwesome5 name="crown" {...props} />;
+const Flame = (props: any) => <Feather name="zap" {...props} />; // Feather has no flame, adapting
+const MapPin = (props: any) => <Feather name="map-pin" {...props} />;
+const Medal = (props: any) => <FontAwesome5 name="medal" {...props} />;
+const Search = (props: any) => <Feather name="search" {...props} />;
+const Shield = (props: any) => <Feather name="shield" {...props} />;
+const Star = (props: any) => <Feather name="star" {...props} />;
+const Trophy = (props: any) => <FontAwesome5 name="trophy" {...props} />;
+const Users = (props: any) => <Feather name="users" {...props} />;
+import NextMatchCard from '../../components/home/NextMatchCard';
+import WeatherWidget from '../../components/home/WeatherWidget';
+import NotificationModal from '../../components/home/NotificationModal';
+import SearchModal from '../../components/home/SearchModal';
 import PlayTab from '../../components/home/PlayTab';
 import TrainTab from '../../components/train/TrainTab';
 // import { auth, db } from '../config/firebase';
@@ -26,6 +42,14 @@ export default function ArenaHomeScreen() {
   const [activeTab, setActiveTab] = useState('Book');
   const [userName, setUserName] = useState('Champion');
   const [avatar, setAvatar] = useState('https://api.dicebear.com/7.x/avataaars/png?seed=Felix');
+  const [selectedCategory, setSelectedCategory] = useState<string | undefined>(undefined);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [showSearch, setShowSearch] = useState(false);
+
+  const handleCategoryPress = (sportName: string) => {
+    setSelectedCategory(sportName);
+    setActiveTab('Play');
+  };
 
   const { location, errorMsg, loading: locationLoading } = useUserLocation();
 
@@ -65,11 +89,15 @@ export default function ArenaHomeScreen() {
         </View>
 
         <View style={styles.headerIcons}>
-          <TouchableOpacity style={styles.iconCircle}>
+          <WeatherWidget />
+          <TouchableOpacity style={styles.iconCircle} onPress={() => router.push('/admin/pages/Dashboard')}>
+            <Shield color="#00D1FF" size={20} />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.iconCircle} onPress={() => setShowNotifications(true)}>
             <Bell color="#FFFFFF" size={20} />
             <View style={styles.badge} />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.profileCircle}>
+          <TouchableOpacity style={styles.profileCircle} onPress={() => router.push('/(tabs)/profile')}>
             <Image source={{ uri: avatar }} style={styles.avatarImage} />
           </TouchableOpacity>
         </View>
@@ -77,26 +105,27 @@ export default function ArenaHomeScreen() {
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
 
-
+        {/* 2. NEXT MATCH CARD (NEW) */}
+        <NextMatchCard userId="65d4c8f9a4b3c2e1d0000002" />
 
         {/* 3. TAB SELECTOR BLOCK */}
         <View style={styles.tabContainer}>
           {['Play', 'Book', 'Train'].map((tab) => (
             <TouchableOpacity key={tab} onPress={() => setActiveTab(tab)} style={styles.tabItem}>
               <Text style={[styles.tabText, activeTab === tab && styles.activeTabText]}>{tab}</Text>
-              {activeTab === tab && <MotiView from={{ width: 0 }} animate={{ width: 25 }} style={styles.activeUnderline} />}
+              {activeTab === tab && <View style={styles.activeUnderline} />}
             </TouchableOpacity>
           ))}
         </View>
 
         {activeTab === 'Play' ? (
-           <PlayTab />
+           <PlayTab initialSport={selectedCategory} />
         ) : activeTab === 'Train' ? (
            <TrainTab />
         ) : (
           <>
             {/* 4. SEARCH BLOCK */}
-            <TouchableOpacity style={styles.searchContainer}>
+            <TouchableOpacity style={styles.searchContainer} onPress={() => setShowSearch(true)}>
               <Search color="#94A3B8" size={20} />
               <Text style={styles.searchPlaceholder}>Search for venues, sports...</Text>
             </TouchableOpacity>
@@ -104,12 +133,12 @@ export default function ArenaHomeScreen() {
             {/* 5. SPORT GRID BLOCK */}
             <View style={styles.gridContainer}>
               {CATEGORIES.map((item, index) => (
-                <MotiView key={item.id} from={{ opacity: 0, translateY: 10 }} animate={{ opacity: 1, translateY: 0 }} transition={{ delay: index * 100 }} style={styles.gridItemWrapper}>
-                  <TouchableOpacity style={styles.gridItem}>
+                <View key={item.id} style={styles.gridItemWrapper}>
+                  <TouchableOpacity style={styles.gridItem} onPress={() => handleCategoryPress(item.name)}>
                     <Text style={styles.gridIcon}>{item.icon}</Text>
                     <Text style={styles.gridText}>{item.name}</Text>
                   </TouchableOpacity>
-                </MotiView>
+                </View>
               ))}
             </View>
 
@@ -179,7 +208,7 @@ export default function ArenaHomeScreen() {
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>Elite Tournaments</Text>
             </View>
-            <TouchableOpacity style={styles.tournamentCard}>
+            <TouchableOpacity style={styles.tournamentCard} onPress={() => router.push('/tournament/65d4c8f9a4b3c2e1d0000001')}>
               <ImageBackground source={{ uri: 'https://images.unsplash.com/photo-1508098682722-e99c43a406b2?q=80&w=800' }} style={styles.tournamentBg} imageStyle={{ borderRadius: 20 }}>
                 <View style={styles.tournamentOverlay}>
                   <View style={styles.regBadge}><Text style={styles.regBadgeText}>REGISTRATION OPEN</Text></View>
@@ -197,6 +226,9 @@ export default function ArenaHomeScreen() {
         )}
 
       </ScrollView>
+
+      <NotificationModal visible={showNotifications} onClose={() => setShowNotifications(false)} />
+      <SearchModal visible={showSearch} onClose={() => setShowSearch(false)} />
     </View>
   );
 }

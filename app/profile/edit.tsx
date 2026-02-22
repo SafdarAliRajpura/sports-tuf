@@ -2,8 +2,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { ArrowLeft, Camera, Check, CheckCircle2, User } from 'lucide-react-native';
-import { MotiView } from 'moti';
 import React, { useEffect, useState } from 'react';
+import Animated, { FadeIn, FadeOut, ZoomIn, ZoomOut, SlideInUp, SlideOutDown, FadeInLeft, FadeInRight, FadeInUp, FadeInDown } from "react-native-reanimated";
 import { ActivityIndicator, Image, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 // import { auth, db } from '../config/firebase';
 // import { doc, getDoc, updateDoc } from 'firebase/firestore';
@@ -123,9 +123,9 @@ export default function EditProfileScreen() {
                 <TouchableOpacity key={item.id} onPress={() => setSelectedAvatar(item.url)} style={styles.avatarWrapper}>
                   <Image source={{ uri: item.url }} style={[styles.avatarOption, selectedAvatar === item.url && styles.activeAvatar]} />
                   {selectedAvatar === item.url && (
-                    <MotiView from={{ scale: 0 }} animate={{ scale: 1 }} style={styles.miniCheck}>
+                    <Animated.View entering={ZoomIn.duration(300)} exiting={ZoomOut.duration(200)}    style={styles.miniCheck}>
                       <CheckCircle2 color="#00FF00" size={16} fill="#000" />
-                    </MotiView>
+                    </Animated.View>
                   )}
                 </TouchableOpacity>
               ))}

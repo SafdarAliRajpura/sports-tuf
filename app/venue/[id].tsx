@@ -2,8 +2,8 @@ import { BlurView } from 'expo-blur';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { ArrowLeft, CheckCircle, ChevronRight, Coffee, Info, MapPin, ParkingCircle, Share2, Shield, Star, Users, Wifi, X } from 'lucide-react-native';
-import { MotiView } from 'moti';
 import React, { useState, useEffect } from 'react';
+import Animated, { FadeIn, FadeOut, ZoomIn, ZoomOut, SlideInUp, SlideOutDown, FadeInLeft, FadeInRight, FadeInUp, FadeInDown } from "react-native-reanimated";
 import { Dimensions, Image, Modal, ScrollView, Share, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { VENUES } from '../../data/venues';
 
@@ -278,10 +278,10 @@ export default function VenueDetailsScreen() {
             >
                 <View style={styles.modalOverlay}>
                     <BlurView intensity={20} tint="dark" style={styles.modalBlur} />
-                    <MotiView
-                        from={{ translateY: 500 }}
-                        animate={{ translateY: 0 }}
-                        transition={{ type: 'timing', duration: 300 }}
+                    <Animated.View entering={FadeInUp.duration(300)} exiting={FadeOut.duration(200)} 
+                        
+                        
+                        
                         style={styles.modalContainer}
                     >
                         <View style={styles.modalHeader}>
@@ -351,7 +351,7 @@ export default function VenueDetailsScreen() {
                                 {!loading && <ArrowLeft color="#000" size={20} style={{ transform: [{ rotate: '180deg' }] }} />}
                             </TouchableOpacity>
                         </View>
-                    </MotiView>
+                    </Animated.View>
                 </View>
             </Modal>
             {/* 8. SUCCESS MODAL */}
@@ -361,10 +361,10 @@ export default function VenueDetailsScreen() {
                 animationType="fade"
             >
                 <BlurView intensity={50} tint="dark" style={styles.successOverlay}>
-                    <MotiView
-                        from={{ scale: 0.9, opacity: 0 }}
-                        animate={{ scale: 1, opacity: 1 }}
-                        transition={{ type: 'timing', duration: 300 }}
+                    <Animated.View entering={ZoomIn.duration(300)} exiting={ZoomOut.duration(200)} 
+                        
+                        
+                        
                         style={styles.successCard}
                     >
                         <View style={styles.successIconCircle}>
@@ -378,7 +378,7 @@ export default function VenueDetailsScreen() {
                         }}>
                             <Text style={styles.homeButtonText}>GO TO HOME</Text>
                         </TouchableOpacity>
-                    </MotiView>
+                    </Animated.View>
                 </BlurView>
             </Modal>
         </View>

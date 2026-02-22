@@ -1,7 +1,7 @@
 import { StatusBar } from 'expo-status-bar';
 import { Calendar as CalendarIcon, Clock, MapPin, QrCode, Ticket, X } from 'lucide-react-native';
-import { MotiView } from 'moti';
 import React, { useState } from 'react';
+import Animated, { FadeIn, FadeOut, ZoomIn, ZoomOut, SlideInUp, SlideOutDown, FadeInLeft, FadeInRight, FadeInUp, FadeInDown } from "react-native-reanimated";
 import { FlatList, Image, Modal, Platform, Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 import { useBookingStore } from '../../store/bookingStore';
@@ -20,10 +20,10 @@ export default function BookingsScreen() {
   };
 
   const renderBooking = ({ item, index }: any) => (
-    <MotiView
-      from={{ opacity: 0, translateX: -20 }}
-      animate={{ opacity: 1, translateX: 0 }}
-      transition={{ delay: index * 100 }}
+    <Animated.View entering={FadeInLeft.duration(300)} exiting={FadeOut.duration(200)} 
+      
+      
+      
       style={styles.card}
     >
       <View style={styles.cardHeader}>
@@ -95,7 +95,7 @@ export default function BookingsScreen() {
           </TouchableOpacity>
         )}
       </View>
-    </MotiView>
+    </Animated.View>
   );
 
   return (
@@ -150,9 +150,9 @@ export default function BookingsScreen() {
           style={styles.modalOverlay}
           onPress={() => setShowTicket(false)}
         >
-          <MotiView
-            from={{ scale: 0.9, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
+          <Animated.View entering={ZoomIn.duration(300)} exiting={ZoomOut.duration(200)} 
+            
+            
             style={styles.ticketContainer}
           >
             {/* Top Ticket Section */}
@@ -195,7 +195,7 @@ export default function BookingsScreen() {
                 ID: AP-{selectedBooking?.id}00X9
               </Text>
             </View>
-          </MotiView>
+          </Animated.View>
         </Pressable>
       </Modal>
     </View>

@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
+import Animated, { FadeIn, FadeOut, ZoomIn, ZoomOut, SlideInUp, SlideOutDown, FadeInLeft, FadeInRight, FadeInUp, FadeInDown } from "react-native-reanimated";
 import { StyleSheet, View, Text, FlatList, Image, TouchableOpacity, TextInput, Modal, Pressable } from 'react-native';
 import { Search, MapPin, Star, SlidersHorizontal, X, Check } from 'lucide-react-native';
 import { StatusBar } from 'expo-status-bar';
-import { MotiView } from 'moti';
 
 const SPORTS_FILTERS = ['All', 'Cricket', 'Football', 'Pickleball', 'Badminton'];
 
@@ -48,9 +48,9 @@ export default function ExploreScreen() {
     : MOCK_VENUES.filter(v => v.sports.includes(selectedSport));
 
   const renderVenue = ({ item }: { item: typeof MOCK_VENUES[0] }) => (
-    <MotiView 
-      from={{ opacity: 0, translateY: 20 }} 
-      animate={{ opacity: 1, translateY: 0 }} 
+    <Animated.View entering={FadeInUp.duration(300)} exiting={FadeOut.duration(200)}  
+       
+       
       style={styles.venueCard}
     >
       <Image 
@@ -86,7 +86,7 @@ export default function ExploreScreen() {
           </TouchableOpacity>
         </View>
       </View>
-    </MotiView>
+    </Animated.View>
   );
 
   return (
@@ -128,9 +128,9 @@ export default function ExploreScreen() {
           style={styles.modalOverlay} 
           onPress={() => setModalVisible(false)}
         >
-          <MotiView 
-            from={{ translateY: 300 }} 
-            animate={{ translateY: 0 }} 
+          <Animated.View entering={FadeInUp.duration(300)} exiting={FadeOut.duration(200)}  
+             
+             
             style={styles.modalContent}
           >
             <View style={styles.modalHeader}>
@@ -161,7 +161,7 @@ export default function ExploreScreen() {
                 </TouchableOpacity>
               ))}
             </View>
-          </MotiView>
+          </Animated.View>
         </Pressable>
       </Modal>
     </View>

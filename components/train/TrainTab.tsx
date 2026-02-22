@@ -1,7 +1,7 @@
 import { useRouter } from 'expo-router';
 import { Dumbbell, MapPin, Play, Star, TrendingUp, Users } from 'lucide-react-native';
-import { MotiView } from 'moti';
 import React from 'react';
+import Animated, { FadeIn, FadeOut, ZoomIn, ZoomOut, SlideInUp, SlideOutDown, FadeInLeft, FadeInRight, FadeInUp, FadeInDown } from "react-native-reanimated";
 import { Image, ImageBackground, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 export default function TrainTab() {
@@ -89,11 +89,11 @@ export default function TrainTab() {
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalList}>
         {coaches.map((coach, index) => (
-          <MotiView 
+          <Animated.View entering={ZoomIn.duration(300)} exiting={ZoomOut.duration(200)}  
             key={coach.id}
-            from={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: index * 100 }}
+            
+            
+            
             style={styles.coachCard}
           >
             <Image source={{ uri: coach.image }} style={styles.coachImage} />
@@ -109,7 +109,7 @@ export default function TrainTab() {
                 <Text style={styles.bookButtonText}>BOOK SESSION</Text>
               </TouchableOpacity>
             </View>
-          </MotiView>
+          </Animated.View>
         ))}
       </ScrollView>
 
