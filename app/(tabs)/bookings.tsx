@@ -1,8 +1,9 @@
 import { StatusBar } from 'expo-status-bar';
-import { Calendar as CalendarIcon, Clock, MapPin, QrCode, Ticket, X } from 'lucide-react-native';
+import { Calendar as CalendarIcon, Clock, MapPin, QrCode, Ticket, X, AlertTriangle } from 'lucide-react-native';
 import React, { useState } from 'react';
 import Animated, { FadeIn, FadeOut, ZoomIn, ZoomOut, SlideInUp, SlideOutDown, FadeInLeft, FadeInRight, FadeInUp, FadeInDown } from "react-native-reanimated";
 import { FlatList, Image, Modal, Platform, Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { BlurView } from 'expo-blur';
 
 import { useBookingStore } from '../../store/bookingStore';
 
@@ -10,13 +11,28 @@ export default function BookingsScreen() {
   const [activeTab, setActiveTab] = useState('Upcoming');
   const [showTicket, setShowTicket] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState<any>(null);
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [bookingToCancel, setBookingToCancel] = useState<any>(null);
 
-  const { upcomingBookings, pastBookings } = useBookingStore();
+  const { upcomingBookings, pastBookings, cancelBooking } = useBookingStore();
   const data = activeTab === 'Upcoming' ? upcomingBookings : pastBookings;
 
   const handleOpenTicket = (booking: any) => {
     setSelectedBooking(booking);
     setShowTicket(true);
+  };
+
+  const handleCancelRequest = (booking: any) => {
+    setBookingToCancel(booking);
+    setShowCancelModal(true);
+  };
+
+  const confirmCancellation = () => {
+    if (bookingToCancel) {
+      cancelBooking(bookingToCancel.id);
+      setShowCancelModal(false);
+      setBookingToCancel(null);
+    }
   };
 
   const renderBooking = ({ item, index }: any) => (
@@ -79,17 +95,7 @@ export default function BookingsScreen() {
         {activeTab === 'Upcoming' && (
           <TouchableOpacity 
             style={styles.cancelBtn}
-            onPress={() => {
-              // Confirm cancellation
-              if (Platform.OS === 'web') {
-                if (confirm('Are you sure you want to cancel this booking?')) {
-                  useBookingStore.getState().cancelBooking(item.id);
-                }
-              } else {
-                 // You might want to use Alert.alert here for native
-                 useBookingStore.getState().cancelBooking(item.id);
-              }
-            }}
+            onPress={() => handleCancelRequest(item)}
           >
            <X color="#FF3B30" size={20} />
           </TouchableOpacity>
@@ -197,6 +203,45 @@ export default function BookingsScreen() {
             </View>
           </Animated.View>
         </Pressable>
+      </Modal>
+
+      {/* CANCEL CONFIRMATION MODAL */}
+      <Modal
+        visible={showCancelModal}
+        transparent
+        animationType="fade"
+      >
+        <View style={styles.cancelOverlay}>
+            <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFillObject} />
+            <Animated.View entering={ZoomIn.duration(300)} exiting={ZoomOut.duration(200)} style={styles.cancelModalCard}>
+                
+                <View style={styles.warningIconCircle}>
+                    <AlertTriangle color="#FF3B30" size={32} />
+                </View>
+                
+                <Text style={styles.cancelModalTitle}>Cancel Booking?</Text>
+                <Text style={styles.cancelModalDesc}>
+                    Are you sure you want to cancel your booking at <Text style={styles.boldText}>{bookingToCancel?.arena}</Text>? This action cannot be undone.
+                </Text>
+
+                <View style={styles.cancelModalActions}>
+                    <TouchableOpacity 
+                        style={styles.keepBtn}
+                        onPress={() => { setShowCancelModal(false); setBookingToCancel(null); }}
+                    >
+                        <Text style={styles.keepBtnText}>Keep It</Text>
+                    </TouchableOpacity>
+                    
+                    <TouchableOpacity 
+                        style={styles.confirmCancelBtn}
+                        onPress={confirmCancellation}
+                    >
+                        <Text style={styles.confirmCancelBtnText}>Yes, Cancel</Text>
+                    </TouchableOpacity>
+                </View>
+
+            </Animated.View>
+        </View>
       </Modal>
     </View>
   );
@@ -455,5 +500,86 @@ const styles = StyleSheet.create({
     padding: 15,
     borderRadius: 20,
     marginBottom: 15,
+  },
+  
+  // Custom Confirmation Modal Styles
+  cancelOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.6)',
+  },
+  cancelModalCard: {
+    width: '85%',
+    backgroundColor: '#0F172A',
+    borderRadius: 24,
+    padding: 30,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 59, 48, 0.3)',
+    shadowColor: '#FF3B30',
+    shadowOpacity: 0.15,
+    shadowRadius: 30,
+    elevation: 10,
+  },
+  warningIconCircle: {
+      width: 70, height: 70,
+      borderRadius: 35,
+      backgroundColor: 'rgba(255, 59, 48, 0.1)',
+      borderWidth: 1,
+      borderColor: 'rgba(255, 59, 48, 0.3)',
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginBottom: 20,
+  },
+  cancelModalTitle: {
+      color: '#FFFFFF',
+      fontSize: 22,
+      fontWeight: '800',
+      marginBottom: 12,
+  },
+  cancelModalDesc: {
+      color: '#94A3B8',
+      fontSize: 14,
+      textAlign: 'center',
+      lineHeight: 22,
+      marginBottom: 30,
+  },
+  boldText: {
+      color: '#FFFFFF',
+      fontWeight: '700',
+  },
+  cancelModalActions: {
+      flexDirection: 'row',
+      gap: 15,
+      width: '100%',
+  },
+  keepBtn: {
+      flex: 1,
+      paddingVertical: 14,
+      backgroundColor: '#1E293B',
+      borderRadius: 14,
+      alignItems: 'center',
+  },
+  keepBtnText: {
+      color: '#FFFFFF',
+      fontSize: 15,
+      fontWeight: '700',
+  },
+  confirmCancelBtn: {
+      flex: 1,
+      paddingVertical: 14,
+      backgroundColor: '#FF3B30',
+      borderRadius: 14,
+      alignItems: 'center',
+      shadowColor: '#FF3B30',
+      shadowOpacity: 0.4,
+      shadowRadius: 8,
+      elevation: 5,
+  },
+  confirmCancelBtnText: {
+      color: '#FFFFFF',
+      fontSize: 15,
+      fontWeight: '800',
   },
 });

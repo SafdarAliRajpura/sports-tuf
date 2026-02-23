@@ -25,7 +25,7 @@ import NotificationModal from '../../components/home/NotificationModal';
 import SearchModal from '../../components/home/SearchModal';
 import PlayTab from '../../components/home/PlayTab';
 import TrainTab from '../../components/train/TrainTab';
-// import { auth, db } from '../config/firebase';
+import api from '../config/api';
 
 const { width } = Dimensions.get('window');
 
@@ -45,6 +45,7 @@ export default function ArenaHomeScreen() {
   const [selectedCategory, setSelectedCategory] = useState<string | undefined>(undefined);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
+  const [venues, setVenues] = useState<any[]>([]);
 
   const handleCategoryPress = (sportName: string) => {
     setSelectedCategory(sportName);
@@ -67,7 +68,18 @@ export default function ArenaHomeScreen() {
           console.error("Failed to load user info", e);
         }
       };
+      
+      const loadVenues = async () => {
+         try {
+             const res = await api.get('/venues');
+             setVenues(res.data);
+         } catch (e) {
+             console.error("Failed to load venues", e);
+         }
+      };
+
       loadUser();
+      loadVenues();
     }, [])
   );
 
@@ -173,16 +185,18 @@ export default function ArenaHomeScreen() {
               />
             </ScrollView>
     
-            {/* 6. TRENDING SECTION BLOCK */}
             <View style={styles.sectionHeader}>
               <View style={styles.sectionTitleRow}>
                 <Flame color="#FF4500" size={20} fill="#FF4500" />
-                <Text style={styles.sectionTitle}>Trending in Ahmedabad</Text>
+                <Text style={styles.sectionTitle}>Trending Venues</Text>
               </View>
             </View>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalScroll}>
-              <TrendingCard title="Decathlon Sports Park" price="₹800" image="https://images.unsplash.com/photo-1574629810360-7efbbe195018?q=80&w=500" rating="4.9" />
-              <TrendingCard title="Kick Off Turf" price="₹1200" image="https://images.unsplash.com/photo-1529900748604-07564a03e7a6?q=80&w=500" rating="4.7" />
+              {venues.length > 0 ? venues.map((venue) => (
+                  <TrendingCard key={venue._id} id={venue._id} title={venue.name} price={'₹' + venue.price} image={venue.images && venue.images.length > 0 ? venue.images[0] : venue.image} rating="4.9" />
+              )) : (
+                  <Text style={{ color: '#94A3B8', fontSize: 13, marginTop: 10 }}>No venues available.</Text>
+              )}
             </ScrollView>
     
             {/* 7. OFFER BLOCK */}
@@ -194,14 +208,16 @@ export default function ArenaHomeScreen() {
               <Trophy color="#00FF00" size={32} />
             </View>
     
-            {/* 8. NEARBY VENUES BLOCK */}
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>Venues around you</Text>
               <TouchableOpacity><Text style={styles.seeAllText}>VIEW ALL</Text></TouchableOpacity>
             </View>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalScroll}>
-              <VenueCard title="Sardar Patel Stadium" image="https://images.unsplash.com/photo-1593341646782-e0b495cff86d?q=80&w=500" dist="2.5 km" rating="4.8" price="₹1500" />
-              <VenueCard title="Apex Pickleball" image="https://images.unsplash.com/photo-1599474924187-334a4ae5bd3c?q=80&w=500" dist="1.2 km" rating="4.6" price="₹600" />
+              {venues.length > 0 ? venues.map((venue) => (
+                  <VenueCard key={`around-${venue._id}`} id={venue._id} title={venue.name} image={venue.images && venue.images.length > 0 ? venue.images[0] : venue.image} dist={venue.location} rating="4.8" price={'₹' + venue.price} />
+              )) : (
+                  <Text style={{ color: '#94A3B8', fontSize: 13, marginTop: 10 }}>No venues available nearby.</Text>
+              )}
             </ScrollView>
     
             {/* 9. TOURNAMENT BLOCK */}
@@ -234,14 +250,14 @@ export default function ArenaHomeScreen() {
 }
 
 // SHARED COMPONENTS WITH NAVIGATION
-function VenueCard({ title, image, dist, rating, price }: any) {
+function VenueCard({ id, title, image, dist, rating, price }: any) {
   const router = useRouter();
   return (
     <TouchableOpacity
       style={styles.venueCard}
       onPress={() => router.push({
         pathname: "/venue/[id]",
-        params: { id: title, title, image, price, rating }
+        params: { id: id || title, title, image, price, rating }
       })}
     >
       <Image source={{ uri: image }} style={styles.venueImage} />
@@ -259,14 +275,14 @@ function VenueCard({ title, image, dist, rating, price }: any) {
   );
 }
 
-function TrendingCard({ title, image, price, rating }: any) {
+function TrendingCard({ id, title, image, price, rating }: any) {
   const router = useRouter();
   return (
     <TouchableOpacity
       style={styles.trendingCard}
       onPress={() => router.push({
         pathname: "/venue/[id]",
-        params: { id: title, title, image, price, rating }
+        params: { id: id || title, title, image, price, rating }
       })}
     >
       <Image source={{ uri: image }} style={styles.trendingImage} />

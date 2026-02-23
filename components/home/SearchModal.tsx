@@ -32,25 +32,26 @@ export default function SearchModal({ visible, onClose }: SearchModalProps) {
   const handleSearch = async () => {
     setLoading(true);
     try {
-      // Replace with real backend call: /venues/search?q={query}&sport={activeFilter}
-      // Simulating API delay and response for now unless backend is ready
-      // const res = await api.get(`/venues/search?q=${query}&sport=${activeFilter}`);
-      // setResults(res.data);
+      const res = await api.get('/venues');
+      const allVenues = res.data;
       
-      // MOCK LOGIC for demo
-      setTimeout(() => {
-        const mockResults = [
-            { id: '1', title: 'Kick Off Turf', sport: 'Football', rating: 4.8, dist: '2.5 km', image: 'https://images.unsplash.com/photo-1529900748604-07564a03e7a6?q=80&w=500' },
-            { id: '2', title: 'Box Cricket Arena', sport: 'Cricket', rating: 4.5, dist: '3.0 km', image: 'https://images.unsplash.com/photo-1593341646782-e0b495cff86d?q=80&w=500' },
-            { id: '3', title: 'Smash Badminton', sport: 'Badminton', rating: 4.6, dist: '1.2 km', image: 'https://images.unsplash.com/photo-1626224583764-847890e058f5?q=80&w=500' },
-        ].filter(item => 
-            item.title.toLowerCase().includes(query.toLowerCase()) && 
-            (activeFilter === 'All' || item.sport === activeFilter)
-        );
-        setResults(mockResults);
-        setLoading(false);
-      }, 500);
+      const filteredResults = allVenues.filter((item: any) => {
+        const titleMatch = item.name.toLowerCase().includes(query.toLowerCase());
+        const sportMatch = activeFilter === 'All' || (item.sport || 'Football') === activeFilter;
+        return titleMatch && sportMatch;
+      });
 
+      const formattedResults = filteredResults.map((item: any) => ({
+          id: item._id,
+          title: item.name,
+          sport: item.sport || 'Football',
+          rating: item.rating || 4.5,
+          dist: item.location || 'Ahmedabad',
+          image: item.images && item.images.length > 0 ? item.images[0] : item.image || 'https://images.unsplash.com/photo-1593341646782-e0b495cff86d?q=80&w=500'
+      }));
+
+      setResults(formattedResults);
+      setLoading(false);
     } catch (error) {
       console.log('Search error:', error);
       setLoading(false);
@@ -61,7 +62,7 @@ export default function SearchModal({ visible, onClose }: SearchModalProps) {
     onClose();
     router.push({
         pathname: "/venue/[id]",
-        params: { id: venue.title, title: venue.title, image: venue.image, rating: venue.rating }
+        params: { id: venue.id, title: venue.title, image: venue.image, rating: String(venue.rating) }
     });
   };
 

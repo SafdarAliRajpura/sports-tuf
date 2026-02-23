@@ -1,53 +1,55 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Animated, { FadeIn, FadeOut, ZoomIn, ZoomOut, SlideInUp, SlideOutDown, FadeInLeft, FadeInRight, FadeInUp, FadeInDown } from "react-native-reanimated";
 import { StyleSheet, View, Text, FlatList, Image, TouchableOpacity, TextInput, Modal, Pressable } from 'react-native';
 import { Search, MapPin, Star, SlidersHorizontal, X, Check } from 'lucide-react-native';
 import { StatusBar } from 'expo-status-bar';
+import { useRouter } from 'expo-router';
+import api from '../../config/api';
 
 const SPORTS_FILTERS = ['All', 'Cricket', 'Football', 'Pickleball', 'Badminton'];
 
-const MOCK_VENUES = [
-  { 
-    id: '1', 
-    name: 'Thunderbolt Arena', 
-    location: 'Satellite, Ahmedabad', 
-    distance: '1.2 km', 
-    rating: '4.8', 
-    price: '₹800/hr', 
-    image: 'https://picsum.photos/id/102/800/600', 
-    sports: ['Football', 'Cricket'] 
-  },
-  { 
-    id: '2', 
-    name: 'Skyline Sports Hub', 
-    location: 'Prahlad Nagar', 
-    distance: '2.5 km', 
-    rating: '4.5', 
-    price: '₹600/hr', 
-    image: 'https://picsum.photos/id/73/800/600', 
-    sports: ['Pickleball'] 
-  },
-  { 
-    id: '3', 
-    name: 'Ace Badminton Club', 
-    location: 'Bopal, Ahmedabad', 
-    distance: '0.8 km', 
-    rating: '4.9', 
-    price: '₹400/hr', 
-    image: 'https://picsum.photos/id/43/800/600', 
-    sports: ['Badminton'] 
-  },
-];
-
 export default function ExploreScreen() {
+  const router = useRouter();
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedSport, setSelectedSport] = useState('All');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [venues, setVenues] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const filteredVenues = selectedSport === 'All' 
-    ? MOCK_VENUES 
-    : MOCK_VENUES.filter(v => v.sports.includes(selectedSport));
+  useEffect(() => {
+    const fetchVenues = async () => {
+        try {
+            const res = await api.get('/venues');
+            
+            // Format API data to match the component's needs
+            const formatted = res.data.map((v: any) => ({
+                id: v._id,
+                name: v.name,
+                location: v.location || 'Ahmedabad',
+                distance: '1.2 km', // Mock distance
+                rating: String(v.rating || 4.5),
+                price: `₹${v.price}/hr`,
+                image: v.images && v.images.length > 0 ? v.images[0] : (v.image || 'https://images.unsplash.com/photo-1574629810360-7efbbe195018?q=80&w=500'),
+                sports: [v.sport || 'Football']
+            }));
+            
+            setVenues(formatted);
+        } catch (error) {
+            console.error('Error fetching venues:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+    fetchVenues();
+  }, []);
 
-  const renderVenue = ({ item }: { item: typeof MOCK_VENUES[0] }) => (
+  const filteredVenues = venues.filter(v => {
+    const matchesSport = selectedSport === 'All' || v.sports.includes(selectedSport);
+    const matchesSearch = v.name.toLowerCase().includes(searchQuery.toLowerCase()) || v.location.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesSport && matchesSearch;
+  });
+
+  const renderVenue = ({ item }: { item: any }) => (
     <Animated.View entering={FadeInUp.duration(300)} exiting={FadeOut.duration(200)}  
        
        
@@ -61,7 +63,7 @@ export default function ExploreScreen() {
         onError={(e) => console.log(`Image error: ${item.name}`, e.nativeEvent.error)}
       />
       <View style={styles.badgeContainer}>
-        {item.sports.map((s, i) => (
+        {item.sports.map((s: string, i: number) => (
           <View key={i} style={styles.sportBadge}>
             <Text style={styles.sportBadgeText}>{s}</Text>
           </View>
@@ -81,7 +83,13 @@ export default function ExploreScreen() {
         </View>
         <View style={[styles.rowBetween, styles.footerRow]}>
           <Text style={styles.priceText}>{item.price}</Text>
-          <TouchableOpacity style={styles.bookBtn}>
+          <TouchableOpacity 
+            style={styles.bookBtn}
+            onPress={() => router.push({
+                pathname: "/venue/[id]",
+                params: { id: item.id, title: item.name, image: item.image, rating: item.rating }
+            })}
+          >
             <Text style={styles.bookBtnText}>BOOK NOW</Text>
           </TouchableOpacity>
         </View>
@@ -99,7 +107,14 @@ export default function ExploreScreen() {
             placeholder="Search venues..." 
             placeholderTextColor="#64748B" 
             style={styles.searchInput} 
+            value={searchQuery}
+            onChangeText={setSearchQuery}
           />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity onPress={() => setSearchQuery('')}>
+              <X color="#94A3B8" size={16} />
+            </TouchableOpacity>
+          )}
         </View>
         <TouchableOpacity 
           style={styles.filterBtn} 
@@ -116,6 +131,11 @@ export default function ExploreScreen() {
         keyExtractor={item => item.id}
         contentContainerStyle={styles.listContainer}
         ListHeaderComponent={<Text style={styles.resultsTitle}>{selectedSport} Arenas</Text>}
+        ListEmptyComponent={
+            <Text style={{ color: '#94A3B8', textAlign: 'center', marginTop: 50 }}>
+                {loading ? "Loading arenas..." : "No arenas found matching your criteria."}
+            </Text>
+        }
       />
 
       <Modal 

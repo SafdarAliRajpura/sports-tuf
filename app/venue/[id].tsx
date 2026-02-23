@@ -1,10 +1,12 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { BlurView } from 'expo-blur';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { ArrowLeft, CheckCircle, ChevronRight, Coffee, Info, MapPin, ParkingCircle, Share2, Shield, Star, Users, Wifi, X } from 'lucide-react-native';
+import { ArrowLeft, CheckCircle, ChevronRight, Coffee, Info, MapPin, ParkingCircle, Share2, Shield, Star, Users, Wifi, X, ArrowRight, Navigation2, CreditCard, Banknote, Smartphone } from 'lucide-react-native';
 import React, { useState, useEffect } from 'react';
-import Animated, { FadeIn, FadeOut, ZoomIn, ZoomOut, SlideInUp, SlideOutDown, FadeInLeft, FadeInRight, FadeInUp, FadeInDown } from "react-native-reanimated";
+import Animated, { FadeIn, FadeOut, ZoomIn, ZoomOut, SlideInUp, SlideOutDown, SlideInDown, FadeInLeft, FadeInRight, FadeInUp, FadeInDown } from "react-native-reanimated";
 import { Dimensions, Image, Modal, ScrollView, Share, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Feather } from '@expo/vector-icons';
 import { VENUES } from '../../data/venues';
 
 const { width } = Dimensions.get('window');
@@ -16,7 +18,16 @@ export default function VenueDetailsScreen() {
     const router = useRouter();
     const params = useLocalSearchParams();
     const { id, title } = params;
-    const [selectedDate, setSelectedDate] = useState(0);
+    const [fetchedVenue, setFetchedVenue] = useState<any>(null);
+    const [activeImageIndex, setActiveImageIndex] = useState(0);
+
+    useEffect(() => {
+        if (id) {
+            api.get(`/venues/${id}`)
+               .then(res => setFetchedVenue(res.data))
+               .catch(err => console.log('Err fetching venue', err));
+        }
+    }, [id]);
 
     // Generate dynamic dates (Next 14 days)
     const dates = React.useMemo(() => {
@@ -38,8 +49,13 @@ export default function VenueDetailsScreen() {
     }, []);
     const [showBookingModal, setShowBookingModal] = useState(false);
     const [showSuccessModal, setShowSuccessModal] = useState(false);
+    const [selectedDate, setSelectedDate] = useState(0);
     const [selectedSlots, setSelectedSlots] = useState<string[]>([]);
-    const addBooking = useBookingStore(state => state.addBooking);
+    const addBooking = useBookingStore((state: any) => state.addBooking);
+
+    // Payment specific state
+    const [showPaymentModal, setShowPaymentModal] = useState(false);
+    const [paymentMethod, setPaymentMethod] = useState('card');
 
     const TIME_SLOTS = [
         { id: '06:00', label: '06:00 AM', status: 'available' },
@@ -100,10 +116,23 @@ export default function VenueDetailsScreen() {
 
     const [loading, setLoading] = useState(false);
 
-    const handleBook = async () => {
+    const openPaymentGateway = () => {
         if (selectedSlots.length === 0) return;
+        setShowBookingModal(false);
+        setTimeout(() => setShowPaymentModal(true), 300); // Slight delay for smooth modal transition
+    };
 
+    const handleConfirmPayment = async () => {
         setLoading(true);
+        
+        // Simulate real-world payment gateway processing delay (3 seconds)
+        await new Promise(resolve => setTimeout(resolve, 3000));
+        
+        // After "payment" is successful, finalize booking
+        await submitBooking();
+    };
+
+    const submitBooking = async () => {
         // Create a display string for time
         const timeDisplay = selectedSlots.sort().map(sid => {
             const slot = TIME_SLOTS.find(s => s.id === sid);
@@ -111,13 +140,24 @@ export default function VenueDetailsScreen() {
         }).join(' & ');
 
         try {
+            const userData = await AsyncStorage.getItem('userInfo');
+            const user = userData ? JSON.parse(userData) : null;
+            const uid = user?._id || user?.id;
+
+            if (!uid) {
+                alert("Please login first to make a booking.");
+                setLoading(false);
+                setShowPaymentModal(false); // Close payment modal if login required
+                return;
+            }
+
             const bookingData = {
-                userId: '65d4c8f9a4b3c2e1d0000002', // Mock User ID
+                userId: uid,
                 turfName: venueData.title || title as string,
                 sport: 'Football',
                 date: dates[selectedDate].fullDate,
                 timeSlot: timeDisplay,
-                price: selectedSlots.length * parseInt(venueData.price.replace('₹', ''))
+                price: selectedSlots.length * parseInt(String(venueData.price).replace('₹', ''))
             };
 
             await api.post('/bookings', bookingData);
@@ -136,7 +176,7 @@ export default function VenueDetailsScreen() {
             addBooking(newBooking);
 
             setLoading(false);
-            setShowBookingModal(false);
+            setShowPaymentModal(false);
             setTimeout(() => {
                 setShowSuccessModal(true);
                 setSelectedSlots([]);
@@ -146,7 +186,7 @@ export default function VenueDetailsScreen() {
             setLoading(false);
             console.error(error);
             // Close modal to show alert clearly
-            setShowBookingModal(false);
+            setShowPaymentModal(false);
             setTimeout(() => {
                  // Using simple alert as backup
                  alert(error.response?.data?.msg || 'Booking Failed. Is backend running?');
@@ -154,15 +194,35 @@ export default function VenueDetailsScreen() {
         }
     };
 
-    const venueData: any = VENUES.find(v => v.id === id || v.title === title) || {
+    const venueData: any = fetchedVenue || VENUES.find(v => v.id === id || v.title === title) || {
         ...params,
-        location: 'Sindhu Bhavan Road, Ahmedabad',
+        location: params.dist || 'Sindhu Bhavan Road, Ahmedabad',
         description: 'This premium arena features FIFA-approved artificial grass, high-intensity LED floodlights. Perfect for matches.',
         amenities: [
             { id: 'parking', label: 'Parking', iconName: 'ParkingCircle' },
             { id: 'wifi', label: 'Free WiFi', iconName: 'Wifi' },
-        ]
+        ],
+        price: params.price ? String(params.price).replace('₹', '') : '1500',
+        images: []
     };
+
+    // Prepare robust image array
+    const imageArray = venueData.images && venueData.images.length > 0 
+        ? venueData.images 
+        : [venueData.image || params.image || 'https://images.unsplash.com/photo-1574629810360-7efbb1925713?q=80&w=600'];
+
+    // Map backend amenities string array to icon objects
+    const finalAmenities = fetchedVenue && fetchedVenue.amenities ? 
+        fetchedVenue.amenities.map((am: string) => {
+           let iconName = 'Info';
+           if(am === 'Parking') iconName = 'ParkingCircle';
+           if(am === 'Free WiFi' || am === 'Wifi' || am === 'Drinking Water') iconName = 'Coffee';
+           if(am === 'Cafeteria') iconName = 'Coffee';
+           if(am === 'First Aid') iconName = 'Shield';
+           if(am === 'Change Room' || am === 'Washroom') iconName = 'Users';
+           if(am === 'Floodlights') iconName = 'Star';
+           return { id: am, label: am, iconName };
+        }) : venueData.amenities;
 
     const getIcon = (iconName: string) => {
         const props = { color: "#00FF00", size: 20 };
@@ -189,8 +249,26 @@ export default function VenueDetailsScreen() {
 
             {/* 1. HERO IMAGE BLOCK */}
             <View style={styles.heroContainer}>
-                <Image source={{ uri: venueData.image as string }} style={styles.heroImage} />
-                <View style={styles.heroOverlay}>
+                <ScrollView 
+                    horizontal 
+                    pagingEnabled 
+                    showsHorizontalScrollIndicator={false}
+                    onScroll={(e) => {
+                        const slide = Math.round(e.nativeEvent.contentOffset.x / width);
+                        setActiveImageIndex(slide);
+                    }}
+                    scrollEventThrottle={16}
+                >
+                    {imageArray.map((img: string, idx: number) => (
+                        <Image key={idx} source={{ uri: img }} style={styles.heroImage} />
+                    ))}
+                </ScrollView>
+                <View style={styles.paginationDots}>
+                    {imageArray.length > 1 && imageArray.map((_: any, idx: number) => (
+                        <View key={idx} style={[styles.dot, activeImageIndex === idx ? styles.activeDot : null]} />
+                    ))}
+                </View>
+                <View style={styles.heroOverlay} pointerEvents="box-none">
                     <TouchableOpacity style={styles.roundButton} onPress={() => router.back()}>
                         <ArrowLeft color="#FFFFFF" size={24} />
                     </TouchableOpacity>
@@ -222,7 +300,7 @@ export default function VenueDetailsScreen() {
                     <Text style={styles.sectionTitle}>Amenities</Text>
                 </View>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.amenitiesList}>
-                    {venueData.amenities?.map((item: any, index: number) => (
+                    {finalAmenities?.map((item: any, index: number) => (
                         <View key={index} style={styles.amenityItem}>
                             {getIcon(item.iconName)}
                             <Text style={styles.amenityLabel}>{item.label}</Text>
@@ -339,16 +417,120 @@ export default function VenueDetailsScreen() {
                             <View style={styles.totalInfo}>
                                 <Text style={styles.totalLabel}>Total Amount</Text>
                                 <Text style={styles.totalPrice}>
-                                    ₹{selectedSlots.length * parseInt(venueData.price.replace('₹', ''))}
+                                    ₹{selectedSlots.length * parseInt(String(venueData.price).replace('₹', ''))}
                                 </Text>
                             </View>
                             <TouchableOpacity
-                                style={[styles.payButton, (selectedSlots.length === 0 || loading) && styles.payButtonDisabled]}
-                                disabled={selectedSlots.length === 0 || loading}
-                                onPress={handleBook}
+                                style={[styles.payButton, selectedSlots.length === 0 && styles.payButtonDisabled]}
+                                disabled={selectedSlots.length === 0}
+                                onPress={openPaymentGateway}
                             >
-                                <Text style={styles.payButtonText}>{loading ? 'PROCESSING...' : 'CHECKOUT'}</Text>
-                                {!loading && <ArrowLeft color="#000" size={20} style={{ transform: [{ rotate: '180deg' }] }} />}
+                                <Text style={styles.payButtonText}>CHECKOUT</Text>
+                                <ArrowLeft color="#000" size={20} style={{ transform: [{ rotate: '180deg' }] }} />
+                            </TouchableOpacity>
+                        </View>
+                    </Animated.View>
+                </View>
+            </Modal>
+
+            {/* PAYMENT GATEWAY MODAL */}
+            <Modal
+                visible={showPaymentModal}
+                transparent={true}
+                animationType="slide"
+            >
+                <View style={styles.modalOverlay}>
+                    <BlurView intensity={20} tint="dark" style={styles.modalBlur} />
+                    <Animated.View entering={SlideInDown.duration(400)} style={styles.paymentModalContainer}>
+                        <View style={styles.modalHeader}>
+                            <View>
+                                <Text style={styles.modalTitle}>Checkout</Text>
+                                <Text style={styles.modalSubtitle}>Select payment method</Text>
+                            </View>
+                            <TouchableOpacity style={styles.closeButton} onPress={() => setShowPaymentModal(false)}>
+                                <Feather name="x" size={20} color="#FFF" />
+                            </TouchableOpacity>
+                        </View>
+
+                        {/* Order Summary Strip */}
+                        <View style={styles.orderSummaryBox}>
+                            <View>
+                                <Text style={styles.summaryLabel}>Total Amount</Text>
+                                <Text style={styles.summaryValue}>₹{selectedSlots.length * parseInt(String(venueData.price).replace('₹', ''))}</Text>
+                            </View>
+                            <View style={styles.summaryVenue}>
+                                <Text style={styles.summaryVenueText}>{venueData.title}</Text>
+                                <Text style={styles.summaryTimeText}>{selectedSlots.length} slot(s)</Text>
+                            </View>
+                        </View>
+
+                        {/* Payment Methods */}
+                        <Text style={styles.paymentSectionTitle}>Payment Options</Text>
+                        
+                        <TouchableOpacity 
+                            style={[styles.paymentMethodCard, paymentMethod === 'card' && styles.paymentMethodCardActive]}
+                            onPress={() => setPaymentMethod('card')}
+                        >
+                            <View style={styles.paymentMethodLeft}>
+                                <View style={[styles.paymentIconBox, paymentMethod === 'card' && styles.paymentIconBoxActive]}>
+                                    <CreditCard size={20} color={paymentMethod === 'card' ? "#00FF00" : "#94A3B8"} />
+                                </View>
+                                <View>
+                                    <Text style={[styles.paymentMethodTitle, paymentMethod === 'card' && styles.paymentMethodTitleActive]}>Credit / Debit Card</Text>
+                                    <Text style={styles.paymentMethodDesc}>Pay securely with Visa, Mastercard, etc.</Text>
+                                </View>
+                            </View>
+                            <View style={[styles.radioCircle, paymentMethod === 'card' && styles.radioCircleActive]}>
+                                {paymentMethod === 'card' && <View style={styles.radioDot} />}
+                            </View>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity 
+                            style={[styles.paymentMethodCard, paymentMethod === 'upi' && styles.paymentMethodCardActive]}
+                            onPress={() => setPaymentMethod('upi')}
+                        >
+                            <View style={styles.paymentMethodLeft}>
+                                <View style={[styles.paymentIconBox, paymentMethod === 'upi' && styles.paymentIconBoxActive]}>
+                                    <Smartphone size={20} color={paymentMethod === 'upi' ? "#00FF00" : "#94A3B8"} />
+                                </View>
+                                <View>
+                                    <Text style={[styles.paymentMethodTitle, paymentMethod === 'upi' && styles.paymentMethodTitleActive]}>UPI (GPay, PhonePe)</Text>
+                                    <Text style={styles.paymentMethodDesc}>Instant payment via UPI apps.</Text>
+                                </View>
+                            </View>
+                            <View style={[styles.radioCircle, paymentMethod === 'upi' && styles.radioCircleActive]}>
+                                {paymentMethod === 'upi' && <View style={styles.radioDot} />}
+                            </View>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity 
+                            style={[styles.paymentMethodCard, paymentMethod === 'cash' && styles.paymentMethodCardActive]}
+                            onPress={() => setPaymentMethod('cash')}
+                        >
+                            <View style={styles.paymentMethodLeft}>
+                                <View style={[styles.paymentIconBox, paymentMethod === 'cash' && styles.paymentIconBoxActive]}>
+                                    <Banknote size={20} color={paymentMethod === 'cash' ? "#00FF00" : "#94A3B8"} />
+                                </View>
+                                <View>
+                                    <Text style={[styles.paymentMethodTitle, paymentMethod === 'cash' && styles.paymentMethodTitleActive]}>Pay at Arena</Text>
+                                    <Text style={styles.paymentMethodDesc}>Pay in cash when you arrive.</Text>
+                                </View>
+                            </View>
+                            <View style={[styles.radioCircle, paymentMethod === 'cash' && styles.radioCircleActive]}>
+                                {paymentMethod === 'cash' && <View style={styles.radioDot} />}
+                            </View>
+                        </TouchableOpacity>
+
+                        {/* Pay Button */}
+                        <View style={styles.paymentFooter}>
+                            <TouchableOpacity
+                                style={[styles.confirmPayBtn, loading && styles.confirmPayBtnLoading]}
+                                disabled={loading}
+                                onPress={handleConfirmPayment}
+                            >
+                                <Text style={styles.confirmPayBtnText}>
+                                    {loading ? 'PROCESSING SECURELY...' : `PAY ₹${selectedSlots.length * parseInt(String(venueData.price).replace('₹', ''))}`}
+                                </Text>
                             </TouchableOpacity>
                         </View>
                     </Animated.View>
@@ -392,7 +574,10 @@ const styles = StyleSheet.create({
 
     // --- HERO BLOCKS ---
     heroContainer: { height: 300, width: '100%' },
-    heroImage: { width: '100%', height: '100%' },
+    heroImage: { width: width, height: '100%', resizeMode: 'cover' },
+    paginationDots: { position: 'absolute', bottom: 30, flexDirection: 'row', width: '100%', justifyContent: 'center', gap: 8 },
+    dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: 'rgba(255,255,255,0.4)' },
+    activeDot: { backgroundColor: '#00FF00', width: 24 },
     heroOverlay: {
         ...StyleSheet.absoluteFillObject,
         paddingTop: 50,
@@ -566,4 +751,116 @@ const styles = StyleSheet.create({
         shadowColor: '#00FF00', shadowOpacity: 0.2, shadowRadius: 10,
     },
     homeButtonText: { color: '#000', fontWeight: '900', fontSize: 13, letterSpacing: 1 },
+
+    // --- PAYMENT MODAL STYLES ---
+    paymentModalContainer: {
+        backgroundColor: '#070A14',
+        borderTopLeftRadius: 35,
+        borderTopRightRadius: 35,
+        padding: 25,
+        height: '80%',
+        borderTopWidth: 1,
+        borderTopColor: 'rgba(255,255,255,0.1)',
+        shadowColor: '#00FF00',
+        shadowOffset: { width: 0, height: -5 },
+        shadowOpacity: 0.1,
+        shadowRadius: 30,
+        elevation: 10,
+    },
+    orderSummaryBox: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        backgroundColor: '#1E293B',
+        padding: 20,
+        borderRadius: 20,
+        borderWidth: 1,
+        borderColor: 'rgba(0, 255, 0, 0.2)',
+        marginBottom: 30,
+    },
+    summaryLabel: { color: '#94A3B8', fontSize: 12, fontWeight: '700', marginBottom: 4 },
+    summaryValue: { color: '#00FF00', fontSize: 28, fontWeight: '900', letterSpacing: 1 },
+    summaryVenue: { alignItems: 'flex-end' },
+    summaryVenueText: { color: '#FFF', fontSize: 15, fontWeight: '800', marginBottom: 4 },
+    summaryTimeText: { color: '#94A3B8', fontSize: 13, fontWeight: '600' },
+    
+    paymentSectionTitle: { color: '#FFFFFF', fontSize: 18, fontWeight: '800', marginBottom: 15 },
+    paymentMethodCard: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        backgroundColor: '#0F172A',
+        padding: 16,
+        borderRadius: 16,
+        marginBottom: 12,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.05)',
+    },
+    paymentMethodCardActive: {
+        borderColor: '#00FF00',
+        backgroundColor: 'rgba(0, 255, 0, 0.05)',
+    },
+    paymentMethodLeft: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 15,
+        flex: 1,
+    },
+    paymentIconBox: {
+        width: 48,
+        height: 48,
+        borderRadius: 12,
+        backgroundColor: '#1E293B',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    paymentIconBoxActive: {
+        backgroundColor: 'rgba(0, 255, 0, 0.15)',
+    },
+    paymentMethodTitle: { color: '#FFFFFF', fontSize: 15, fontWeight: '700', marginBottom: 4 },
+    paymentMethodTitleActive: { color: '#00FF00' },
+    paymentMethodDesc: { color: '#64748B', fontSize: 12, fontWeight: '500' },
+    radioCircle: {
+        width: 22,
+        height: 22,
+        borderRadius: 11,
+        borderWidth: 2,
+        borderColor: '#334155',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    radioCircleActive: {
+        borderColor: '#00FF00',
+    },
+    radioDot: {
+        width: 10,
+        height: 10,
+        borderRadius: 5,
+        backgroundColor: '#00FF00',
+    },
+    paymentFooter: {
+        marginTop: 'auto',
+        paddingTop: 15,
+    },
+    confirmPayBtn: {
+        backgroundColor: '#00FF00',
+        paddingVertical: 18,
+        borderRadius: 18,
+        alignItems: 'center',
+        justifyContent: 'center',
+        shadowColor: '#00FF00',
+        shadowOpacity: 0.3,
+        shadowRadius: 10,
+        elevation: 5,
+    },
+    confirmPayBtnLoading: {
+        backgroundColor: '#22C55E',
+        opacity: 0.8,
+    },
+    confirmPayBtnText: {
+        color: '#000',
+        fontWeight: '900',
+        fontSize: 16,
+        letterSpacing: 1,
+    },
 });
