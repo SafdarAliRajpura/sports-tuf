@@ -8,6 +8,33 @@ import api from '../../config/api';
 const AVAILABLE_AMENITIES = ['Parking', 'Washroom', 'Drinking Water', 'Cafeteria', 'First Aid', 'Change Room', 'Floodlights'];
 const AVAILABLE_SPORTS = ['Football', 'Cricket', 'Pickleball', 'Badminton', 'Tennis', 'Basketball'];
 
+const CustomDropdown = ({ value, options, onSelect, placeholder, containerStyle, zIndex = 1 }: any) => {
+    const [isOpen, setIsOpen] = useState(false);
+    return (
+        <View style={[{ position: 'relative', zIndex: isOpen ? zIndex + 100 : zIndex }, containerStyle]}>
+            <TouchableOpacity 
+                style={{ backgroundColor: 'rgba(255, 255, 255, 0.05)', borderWidth: 1, borderColor: '#1E293B', borderRadius: 8, paddingHorizontal: 16, height: 48, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }} 
+                onPress={() => setIsOpen(!isOpen)}
+                activeOpacity={0.8}
+            >
+                <Text style={{ color: value ? '#FFFFFF' : '#64748B', fontSize: 14 }}>{value || placeholder}</Text>
+                <Feather name={isOpen ? "chevron-up" : "chevron-down"} size={18} color="#94A3B8" />
+            </TouchableOpacity>
+            {isOpen && (
+                <View style={{ position: 'absolute', top: 52, left: 0, right: 0, backgroundColor: '#1E293B', borderRadius: 8, padding: 8, borderWidth: 1, borderColor: '#334155', elevation: 5 }}>
+                    <ScrollView style={{ maxHeight: 150 }} nestedScrollEnabled>
+                        {options.map((opt: string) => (
+                            <TouchableOpacity key={opt} style={{ paddingVertical: 10, paddingHorizontal: 12, borderRadius: 6, backgroundColor: value === opt ? 'rgba(0, 209, 255, 0.1)' : 'transparent' }} onPress={() => { onSelect(opt); setIsOpen(false); }}>
+                                <Text style={{ color: value === opt ? '#00D1FF' : '#E2E8F0', fontWeight: value === opt ? '600' : '400', fontSize: 14 }}>{opt}</Text>
+                            </TouchableOpacity>
+                        ))}
+                    </ScrollView>
+                </View>
+            )}
+        </View>
+    );
+};
+
 export default function MyTurfs() {
     const { width } = useWindowDimensions();
     const isMobile = width < 768;
@@ -23,6 +50,8 @@ export default function MyTurfs() {
     const [name, setName] = useState('');
     const [location, setLocation] = useState('');
     const [price, setPrice] = useState('');
+    const [courtCount, setCourtCount] = useState('1');
+    const [courtSportsConfig, setCourtSportsConfig] = useState<string[]>(['Football']);
     const [description, setDescription] = useState('');
     const [images, setImages] = useState<string[]>([]);
     const [selectedAmenities, setSelectedAmenities] = useState<string[]>([]);
@@ -47,6 +76,22 @@ export default function MyTurfs() {
         } finally {
             setLoading(false);
         }
+    };
+
+    const handleCourtCountChange = (countStr: string) => {
+        setCourtCount(countStr);
+        const count = parseInt(countStr) || 1;
+        const newSports = [...courtSportsConfig];
+        while (newSports.length < count) {
+            newSports.push(selectedSports.length > 0 ? selectedSports[0] : 'Football');
+        }
+        setCourtSportsConfig(newSports.slice(0, count));
+    };
+
+    const handleCourtSportChange = (idx: number, sport: string) => {
+        const newSports = [...courtSportsConfig];
+        newSports[idx] = sport;
+        setCourtSportsConfig(newSports);
     };
 
     const pickImage = async () => {
@@ -84,6 +129,8 @@ export default function MyTurfs() {
         setName('');
         setLocation('');
         setPrice('');
+        setCourtCount('1');
+        setCourtSportsConfig(['Football']);
         setDescription('');
         setImages([]);
         setSelectedAmenities([]);
@@ -105,6 +152,8 @@ export default function MyTurfs() {
                 location, 
                 description,
                 price: Number(price),
+                courtCount: Number(courtCount) || 1,
+                courtSports: courtSportsConfig,
                 amenities: selectedAmenities,
                 sports: selectedSports,
                 sport: selectedSports.length > 0 ? selectedSports[0] : 'Football',
@@ -137,6 +186,15 @@ export default function MyTurfs() {
         setName(turf.name || '');
         setLocation(turf.location || '');
         setPrice(turf.price ? String(turf.price) : '');
+        
+        const cc = turf.courtCount ? String(turf.courtCount) : '1';
+        setCourtCount(cc);
+        if (turf.courtSports && turf.courtSports.length > 0) {
+            setCourtSportsConfig(turf.courtSports);
+        } else {
+            setCourtSportsConfig(Array(parseInt(cc) || 1).fill('Football'));
+        }
+        
         setDescription(turf.description || '');
         setImages(turf.images || (turf.image ? [turf.image] : []));
         setSelectedAmenities(turf.amenities || []);
@@ -241,6 +299,10 @@ export default function MyTurfs() {
                                 </View>
 
                                 <View style={styles.locationRow}>
+                                    <Feather name="layers" size={12} color="#64748B" />
+                                    <Text style={styles.locationText}>{turf.courtCount || 1} {turf.courtCount === 1 ? 'Court' : 'Courts'}</Text>
+                                </View>
+                                <View style={styles.locationRow}>
                                     <Feather name="map-pin" size={12} color="#64748B" />
                                     <Text style={styles.locationText} numberOfLines={1}>{turf.location}</Text>
                                 </View>
@@ -289,10 +351,43 @@ export default function MyTurfs() {
                                 <TextInput style={styles.inputField} placeholder="e.g. Andheri West, Mumbai" placeholderTextColor="#64748B" value={location} onChangeText={setLocation} />
                             </View>
 
-                            <View style={styles.inputGroup}>
-                                <Text style={styles.inputLabel}>Price per Hour (₹)</Text>
-                                <TextInput style={styles.inputField} placeholder="e.g. 1500" placeholderTextColor="#64748B" value={price} onChangeText={setPrice} keyboardType="numeric" />
+                            <View style={{ flexDirection: 'row', gap: 15 }}>
+                                <View style={[styles.inputGroup, { flex: 1 }]}>
+                                    <Text style={styles.inputLabel}>Price / Hr (₹)</Text>
+                                    <TextInput style={styles.inputField} placeholder="e.g. 1500" placeholderTextColor="#64748B" value={price} onChangeText={setPrice} keyboardType="numeric" />
+                                </View>
+                                <View style={[styles.inputGroup, { flex: 1, zIndex: 100 }]}>
+                                    <Text style={styles.inputLabel}>No. of Courts</Text>
+                                    <CustomDropdown 
+                                        value={courtCount} 
+                                        options={['1', '2', '3', '4', '5', '6', '7', '8', '9', '10']} 
+                                        onSelect={handleCourtCountChange} 
+                                        placeholder="Select Courts" 
+                                    />
+                                </View>
                             </View>
+
+                            {/* Dynamically render court sport dropdowns if multiple courts */}
+                            {parseInt(courtCount) > 1 && (
+                                <View style={[styles.inputGroup, { zIndex: 90 }]}>
+                                    <Text style={styles.inputLabel}>Sports by Court</Text>
+                                    <View style={{ gap: 10, marginTop: 4 }}>
+                                        {Array.from({ length: parseInt(courtCount) || 1 }).map((_, idx) => (
+                                            <View key={idx} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, zIndex: 50 - idx }}>
+                                                <Text style={{ color: '#94A3B8', width: 60, fontSize: 13 }}>Court {idx + 1}</Text>
+                                                <CustomDropdown 
+                                                    containerStyle={{ flex: 1 }}
+                                                    value={courtSportsConfig[idx] || 'Football'} 
+                                                    options={AVAILABLE_SPORTS} 
+                                                    onSelect={(val: string) => handleCourtSportChange(idx, val)} 
+                                                    placeholder="Select Sport" 
+                                                    zIndex={50 - idx}
+                                                />
+                                            </View>
+                                        ))}
+                                    </View>
+                                </View>
+                            )}
 
                             <View style={styles.inputGroup}>
                                 <Text style={styles.inputLabel}>Description / About Venue</Text>

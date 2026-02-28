@@ -46,6 +46,7 @@ export default function ArenaHomeScreen() {
   const [showNotifications, setShowNotifications] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
   const [venues, setVenues] = useState<any[]>([]);
+  const [tournaments, setTournaments] = useState<any[]>([]);
 
   const handleCategoryPress = (sportName: string) => {
     setSelectedCategory(sportName);
@@ -78,8 +79,18 @@ export default function ArenaHomeScreen() {
          }
       };
 
+      const loadTournaments = async () => {
+         try {
+             const res = await api.get('/tournaments');
+             setTournaments(res.data);
+         } catch (e) {
+             console.error("Failed to load tournaments", e);
+         }
+      };
+
       loadUser();
       loadVenues();
+      loadTournaments();
     }, [])
   );
 
@@ -102,9 +113,6 @@ export default function ArenaHomeScreen() {
 
         <View style={styles.headerIcons}>
           <WeatherWidget />
-          <TouchableOpacity style={styles.iconCircle} onPress={() => router.push('/admin/pages/Dashboard')}>
-            <Shield color="#00D1FF" size={20} />
-          </TouchableOpacity>
           <TouchableOpacity style={styles.iconCircle} onPress={() => setShowNotifications(true)}>
             <Bell color="#FFFFFF" size={20} />
             <View style={styles.badge} />
@@ -224,20 +232,30 @@ export default function ArenaHomeScreen() {
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>Elite Tournaments</Text>
             </View>
-            <TouchableOpacity style={styles.tournamentCard} onPress={() => router.push('/tournament/65d4c8f9a4b3c2e1d0000001')}>
-              <ImageBackground source={{ uri: 'https://images.unsplash.com/photo-1508098682722-e99c43a406b2?q=80&w=800' }} style={styles.tournamentBg} imageStyle={{ borderRadius: 20 }}>
-                <View style={styles.tournamentOverlay}>
-                  <View style={styles.regBadge}><Text style={styles.regBadgeText}>REGISTRATION OPEN</Text></View>
-                  <Text style={styles.tournamentTitle}>Ahmedabad Football League 2026</Text>
-                  <View style={styles.tournamentDetailRow}>
-                    <Calendar color="#00FF00" size={14} />
-                    <Text style={styles.tournamentDetailText}>Starts 15 Feb</Text>
-                    <Users color="#00FF00" size={14} style={{ marginLeft: 15 }} />
-                    <Text style={styles.tournamentDetailText}>16 Teams</Text>
-                  </View>
-                </View>
-              </ImageBackground>
-            </TouchableOpacity>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingLeft: 20, paddingRight: 20 }}>
+            {tournaments.length > 0 ? tournaments.map(t => (
+                <TouchableOpacity key={t._id} style={[styles.tournamentCard, { width: 330, marginRight: 20, marginHorizontal: 0 }]} onPress={() => router.push(`/tournament/${t._id}`)}>
+                  <ImageBackground source={{ uri: t.image || 'https://images.unsplash.com/photo-1508098682722-e99c43a406b2?q=80&w=800' }} style={styles.tournamentBg} imageStyle={{ borderRadius: 20 }}>
+                    <View style={styles.tournamentOverlay}>
+                      <View style={[styles.regBadge, t.status === 'Ongoing' && { backgroundColor: '#F59E0B' }, t.status === 'Completed' && { backgroundColor: '#64748B' }]}>
+                        <Text style={[styles.regBadgeText, (t.status === 'Ongoing' || t.status === 'Completed') && { color: '#FFF' }]}>
+                             {t.status === 'Ongoing' ? 'IN PROGRESS' : (t.status === 'Completed' ? 'COMPLETED' : 'REGISTRATION OPEN')}
+                        </Text>
+                      </View>
+                      <Text style={styles.tournamentTitle}>{t.title}</Text>
+                      <View style={styles.tournamentDetailRow}>
+                        <Calendar color="#00FF00" size={14} />
+                        <Text style={styles.tournamentDetailText}>{new Date(t.startDate).toLocaleDateString()}</Text>
+                        <Users color="#00FF00" size={14} style={{ marginLeft: 15 }} />
+                        <Text style={styles.tournamentDetailText}>{t.registeredTeams?.length || 0} / {t.maxTeams} Teams</Text>
+                      </View>
+                    </View>
+                  </ImageBackground>
+                </TouchableOpacity>
+             )) : (
+                 <Text style={{ color: '#94A3B8', fontSize: 13, marginTop: 10, marginBottom: 40, marginLeft: 20 }}>No elite tournaments active.</Text>
+             )}
+            </ScrollView>
           </>
         )}
 

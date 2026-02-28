@@ -11,6 +11,8 @@ export default function TournamentDetailsScreen() {
   const [loading, setLoading] = useState(true);
   const [registerModalVisible, setRegisterModalVisible] = useState(false);
   const [teamName, setTeamName] = useState('');
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
 
   useEffect(() => {
     if (id) fetchTournamentDetails();
@@ -34,22 +36,29 @@ export default function TournamentDetailsScreen() {
         return;
     }
 
-    try {
-        // Mock user ID for captain (In real app, get from Auth context)
-        const captainId = '65d4c8f9a4b3c2e1d0000002'; 
-        
-        await api.post(`/tournaments/${id}/register`, {
-            teamName,
-            captainId,
-            memberIds: [] // Can add improved member selection later
-        });
+    setIsProcessing(true);
 
-        Alert.alert('Success', 'Team registered successfully! Good luck!');
-        setRegisterModalVisible(false);
-        fetchTournamentDetails(); // Refresh to update team count
-    } catch (error: any) {
-        Alert.alert('Registration Failed', error.response?.data?.msg || 'Something went wrong');
-    }
+    // Mock payment gateway delay for premium feel
+    setTimeout(async () => {
+        try {
+            // Mock user ID for captain (In real app, get from Auth context)
+            const captainId = '65d4c8f9a4b3c2e1d0000002'; 
+            
+            await api.post(`/tournaments/${id}/register`, {
+                teamName,
+                captainId,
+                memberIds: [] // Can add improved member selection later
+            });
+
+            setIsProcessing(false);
+            setRegisterModalVisible(false);
+            setShowSuccessModal(true);
+            fetchTournamentDetails(); // Refresh to update team count
+        } catch (error: any) {
+            setIsProcessing(false);
+            Alert.alert('Registration Failed', error.response?.data?.msg || 'Something went wrong');
+        }
+    }, 1500);
   };
 
   if (loading) {
@@ -128,10 +137,21 @@ export default function TournamentDetailsScreen() {
             {/* RULES */}
             <View style={styles.section}>
                 <Text style={styles.sectionTitle}>Rules & Format</Text>
-                <View style={styles.ruleItem}>
-                    <Shield color="#00FF00" size={16} />
-                    <Text style={styles.ruleText}>Knockout Format (Quarter -&gt; Semi -&gt; Final)</Text>
-                </View>
+                
+                {tournament.format && (
+                    <View style={styles.ruleItem}>
+                        <Shield color="#00FF00" size={16} />
+                        <Text style={styles.ruleText}>Format: {tournament.format}</Text>
+                    </View>
+                )}
+                
+                {tournament.courts && (
+                    <View style={styles.ruleItem}>
+                        <Shield color="#00FF00" size={16} />
+                        <Text style={styles.ruleText}>Played across {tournament.courts} {tournament.courts === 1 ? 'Court' : 'Courts'}</Text>
+                    </View>
+                )}
+                
                 <View style={styles.ruleItem}>
                     <Shield color="#00FF00" size={16} />
                     <Text style={styles.ruleText}>5 Main + 3 Subs allowed</Text>
@@ -140,6 +160,22 @@ export default function TournamentDetailsScreen() {
                     <Shield color="#00FF00" size={16} />
                     <Text style={styles.ruleText}>Professional Referees</Text>
                 </View>
+            </View>
+
+            {/* REGISTERED TEAMS */}
+            <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Registered Teams ({tournament.registeredTeams?.length || 0}/{tournament.maxTeams})</Text>
+                {tournament.registeredTeams && tournament.registeredTeams.length > 0 ? (
+                    <View style={styles.teamsGrid}>
+                        {tournament.registeredTeams.map((team: any, i: number) => (
+                            <View key={i} style={styles.teamTag}>
+                                <Text style={styles.teamTagText}>{team.name}</Text>
+                            </View>
+                        ))}
+                    </View>
+                ) : (
+                    <Text style={styles.descriptionText}>No teams joined yet. Be the first!</Text>
+                )}
             </View>
 
         </View>
@@ -181,13 +217,32 @@ export default function TournamentDetailsScreen() {
                 />
 
                 <View style={styles.modalButtons}>
-                    <TouchableOpacity style={styles.cancelButton} onPress={() => setRegisterModalVisible(false)}>
+                    <TouchableOpacity style={styles.cancelButton} onPress={() => setRegisterModalVisible(false)} disabled={isProcessing}>
                         <Text style={styles.cancelText}>CANCEL</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity style={styles.confirmButton} onPress={handleRegister}>
-                        <Text style={styles.confirmText}>PAY & JOIN</Text>
+                    <TouchableOpacity style={[styles.confirmButton, isProcessing && { opacity: 0.7 }]} onPress={handleRegister} disabled={isProcessing}>
+                        {isProcessing ? (
+                            <ActivityIndicator size="small" color="#000000" />
+                        ) : (
+                            <Text style={styles.confirmText}>PAY & JOIN</Text>
+                        )}
                     </TouchableOpacity>
                 </View>
+            </View>
+        </View>
+      </Modal>
+
+      {/* SUCCESS MODAL */}
+      <Modal visible={showSuccessModal} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+            <View style={[styles.modalContent, { alignItems: 'center', padding: 30 }]}>
+                <CheckCircle color="#00FF00" size={60} style={{ marginBottom: 20 }} />
+                <Text style={styles.modalTitle}>Registration Successful!</Text>
+                <Text style={styles.modalSubtitle}>Your team "{teamName}" is officially in the bracket. Prepare for victory!</Text>
+                
+                <TouchableOpacity style={[styles.confirmButton, { width: '100%', marginTop: 20 }]} onPress={() => setShowSuccessModal(false)}>
+                    <Text style={styles.confirmText}>AWESOME</Text>
+                </TouchableOpacity>
             </View>
         </View>
       </Modal>
@@ -245,8 +300,13 @@ const styles = StyleSheet.create({
   modalSubtitle: { color: '#94A3B8', fontSize: 13, marginBottom: 20, textAlign: 'center' },
   input: { backgroundColor: '#0F172A', color: '#FFF', borderRadius: 12, padding: 15, fontSize: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', marginBottom: 20 },
   modalButtons: { flexDirection: 'row', gap: 15 },
-  cancelButton: { flex: 1, padding: 12, alignItems: 'center', borderRadius: 12, borderWidth: 1, borderColor: '#EF4444' },
+  cancelButton: { flex: 1, padding: 12, alignItems: 'center', borderRadius: 12, borderWidth: 1, borderColor: '#EF4444', justifyContent: 'center' },
   cancelText: { color: '#EF4444', fontWeight: '800' },
-  confirmButton: { flex: 1, padding: 12, alignItems: 'center', borderRadius: 12, backgroundColor: '#00FF00' },
-  confirmText: { color: '#000', fontWeight: '800' }
+  confirmButton: { flex: 1, padding: 12, alignItems: 'center', borderRadius: 12, backgroundColor: '#00FF00', justifyContent: 'center' },
+  confirmText: { color: '#000', fontWeight: '800' },
+
+  // TEAMS
+  teamsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  teamTag: { backgroundColor: 'rgba(0,255,0,0.1)', paddingHorizontal: 15, paddingVertical: 8, borderRadius: 20, borderWidth: 1, borderColor: '#00FF00' },
+  teamTagText: { color: '#00FF00', fontWeight: '800', fontSize: 13 }
 });

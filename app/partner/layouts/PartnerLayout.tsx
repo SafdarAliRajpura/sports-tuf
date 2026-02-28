@@ -25,6 +25,7 @@ export default function PartnerLayout({ children }: { children?: React.ReactNode
     const sidebarItems = [
         { iconName: "grid", label: 'Dashboard', path: '/partner/pages/Dashboard' },
         { iconName: "map-pin", label: 'My Turfs', path: '/partner/pages/MyTurfs' },
+        { iconName: "award", label: 'Tournaments', path: '/partner/pages/Tournaments' },
         { iconName: "calendar", label: 'Bookings', path: '/partner/pages/Bookings' },
         { iconName: "bar-chart-2", label: 'Analytics', path: '/partner/pages/Analytics' },
         { iconName: "settings", label: 'Settings', path: '/partner/pages/Settings' },
