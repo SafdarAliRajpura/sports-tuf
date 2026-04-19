@@ -3,7 +3,7 @@ import { Clock, MapPin, Plus, UserPlus, Users, Search, CheckCircle } from 'lucid
 import React, { useCallback, useState, useEffect } from 'react';
 import Animated, { FadeIn, FadeOut, ZoomIn, ZoomOut, SlideInUp, SlideOutDown, FadeInLeft, FadeInRight, FadeInUp, FadeInDown } from "react-native-reanimated";
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View, ActivityIndicator, Alert } from 'react-native';
-import api from '../../config/api';
+import apiClient from '../../src/api/apiClient';
 
 export default function PlayTab({ initialSport }: { initialSport?: string }) {
   const router = useRouter();
@@ -23,8 +23,10 @@ export default function PlayTab({ initialSport }: { initialSport?: string }) {
 
   const fetchMatches = async () => {
     try {
-      const res = await api.get('/matches');
-      setMatches(res.data);
+      setLoading(true);
+      const res = await apiClient.get('/api/matches');
+      // Backend returns { success: true, data: [...] } or { success: true, count: X, data: [...] }
+      setMatches(Array.isArray(res.data.data) ? res.data.data : []);
     } catch (error) {
       console.log('Error fetching matches:', error);
     } finally {
@@ -41,23 +43,19 @@ export default function PlayTab({ initialSport }: { initialSport?: string }) {
   const handleJoin = async (matchId: string) => {
     setJoiningId(matchId);
     try {
-      // Use a DIFFERENT fake user ID for joining to simulate another player
-      // This allows testing "Join" even if I created the match (as long as backend doesn't block host from joining again, but host is already in list)
-      // Actually, if I created it, I am already in the list.
-      // If I want to join as a guest, I must use a DIFFERENT ID.
       const guestId = '65d4c8f9a4b3c2e1d0000003'; 
-      await api.put(`/matches/${matchId}/join`, { userId: guestId });
+      await apiClient.put(`/api/matches/${matchId}/join`, { userId: guestId });
       
       // Update local state to reflect join
       setMatches(prev => prev.map((m: any) => 
         m._id === matchId 
-          ? { ...m, playersJoined: [...m.playersJoined, { _id: guestId, fullName: 'Guest' }], playersJoinedCount: m.playersJoined.length + 1 } 
+          ? { ...m, playersJoined: [...(m.playersJoined || []), { _id: guestId, fullName: 'Guest' }], playersJoinedCount: (m.playersJoinedCount || 0) + 1 } 
           : m
       ));
       
-      Alert.alert('Success', 'You receive joined the match lobby!');
+      Alert.alert('Success', 'You successfully joined the match lobby!');
     } catch (error: any) {
-      Alert.alert('Error', error.response?.data?.msg || 'Failed to join match');
+      Alert.alert('Error', error.response?.data?.message || 'Failed to join match');
     } finally {
       setJoiningId(null);
     }
@@ -69,7 +67,6 @@ export default function PlayTab({ initialSport }: { initialSport?: string }) {
     <View style={styles.container}>
       {/* ACTION BUTTONS */}
       <View style={styles.actionRow}>
-        {/* ... (existing buttons) ... */}
         <TouchableOpacity style={styles.actionButton} onPress={() => router.push('/play/create-match')}>
           <View style={styles.iconBox}>
              <Plus color="#00FF00" size={24} />
@@ -119,38 +116,33 @@ export default function PlayTab({ initialSport }: { initialSport?: string }) {
           {filteredMatches.length === 0 ? (
             <Text style={styles.emptyText}>No open matches found.</Text>
           ) : (
-            filteredMatches.map((match: any, index) => {
-              // ... existing mapping logic
-
+            filteredMatches.map((match: any) => {
               const currentUserId = '65d4c8f9a4b3c2e1d0000002'; // Mock Host ID
               const guestId = '65d4c8f9a4b3c2e1d0000003'; // Mock Guest ID
-              const joinedCount = match.playersJoined ? match.playersJoined.length : 0;
+              const joinedCount = match.playersJoined ? match.playersJoined.length : (match.playersJoinedCount || 0);
               const isFull = joinedCount >= match.playersTotal;
               
               const isJoined = match.playersJoined?.some((p: any) => {
                   const pid = typeof p === 'object' ? p._id : p;
-                  // Check if either my Host Identity OR Guest Identity is in the match
                   return pid === currentUserId || pid === guestId || p === 'Me';
               });
 
               return (
-                <Animated.View entering={FadeInUp.duration(300)} exiting={FadeOut.duration(200)}  
+                <Animated.View 
                   key={match._id}
-                  
-                  
-                  
+                  entering={FadeInUp.duration(300)} exiting={FadeOut.duration(200)}  
                   style={styles.lobbyCard}
                 >
                   <View style={styles.cardHeader}>
                     <View style={styles.sportBadge}>
-                      <Text style={styles.sportText}>{match.sport.toUpperCase()}</Text>
+                      <Text style={styles.sportText}>{match.sport?.toUpperCase() || 'SPORTS'}</Text>
                     </View>
                     <View style={styles.priceBadge}>
                       <Text style={styles.priceText}>₹{match.pricePerPerson}/person</Text>
                     </View>
                   </View>
   
-                  <Text style={styles.venueName}>{match.venue}</Text>
+                  <Text style={styles.venueName}>{match.venue || 'TBA'}</Text>
                   
                   <View style={styles.detailsRow}>
                     <View style={styles.detailItem}>
@@ -166,7 +158,7 @@ export default function PlayTab({ initialSport }: { initialSport?: string }) {
                   </View>
   
                   <View style={styles.hostRow}>
-                    <Text style={styles.hostText}>Hosted by <Text style={styles.hostName}>{match.host?.fullName || 'Unknown Host'}</Text></Text>
+                    <Text style={styles.hostText}>Hosted by <Text style={styles.hostName}>{match.host?.name || match.host?.fullName || 'Unknown Host'}</Text></Text>
                     
                     {isJoined ? (
                       <View style={styles.joinedBadge}>
@@ -254,7 +246,6 @@ const styles = StyleSheet.create({
   joinedText: { color: '#000', fontSize: 12, fontWeight: '900' },
   emptyText: { color: '#64748B', textAlign: 'center', marginTop: 40, fontStyle: 'italic' },
 
-  // FILTER STYLES
   filterChip: {
     paddingHorizontal: 20, paddingVertical: 8, borderRadius: 20,
     backgroundColor: '#1E293B', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)',

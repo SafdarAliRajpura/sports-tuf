@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, useWindowDimensio
 import { Feather } from '@expo/vector-icons';
 import Animated, { FadeInUp, FadeInRight, SlideInUp, SlideOutDown } from 'react-native-reanimated';
 import * as ImagePicker from 'expo-image-picker';
-import api from '../../config/api';
+import apiClient from '../../../src/api/apiClient';
 
 const AVAILABLE_AMENITIES = ['Parking', 'Washroom', 'Drinking Water', 'Cafeteria', 'First Aid', 'Change Room', 'Floodlights'];
 const AVAILABLE_SPORTS = ['Football', 'Cricket', 'Pickleball', 'Badminton', 'Tennis', 'Basketball'];
@@ -69,8 +69,8 @@ export default function MyTurfs() {
     const fetchTurfs = async () => {
         try {
             setLoading(true);
-            const res = await api.get('/venues/my-venues');
-            setTurfs(res.data);
+            const res = await apiClient.get('/api/venues/my-venues');
+            setTurfs(res.data.data);
         } catch (error) {
             console.error(error);
         } finally {
@@ -165,11 +165,11 @@ export default function MyTurfs() {
 
             if (editingId) {
                 // Update existing
-                const res = await api.put(`/venues/${editingId}`, payload);
+                const res = await apiClient.put(`/api/venues/${editingId}`, payload);
                 setTurfs(turfs.map(t => t._id === editingId ? res.data : t));
             } else {
                 // Create new
-                const res = await api.post('/venues', payload);
+                const res = await apiClient.post('/api/venues', payload);
                 setTurfs([...turfs, res.data]);
             }
 
@@ -206,7 +206,7 @@ export default function MyTurfs() {
     const handleToggleStatus = async (turf: any) => {
         try {
             const newStatus = turf.status === 'ACTIVE' ? 'MAINTENANCE' : 'ACTIVE';
-            const res = await api.put(`/venues/${turf._id}`, { status: newStatus });
+            const res = await apiClient.put(`/api/venues/${turf._id}`, { status: newStatus });
             setTurfs(turfs.map(t => t._id === turf._id ? res.data : t));
         } catch (error) {
             console.error('Failed to toggle status', error);
@@ -221,7 +221,7 @@ export default function MyTurfs() {
     const confirmDeleteTurf = async () => {
         if (!turfToDelete) return;
         try {
-            await api.delete(`/venues/${turfToDelete}`);
+            await apiClient.delete(`/api/venues/${turfToDelete}`);
             setTurfs(turfs.filter(t => t._id !== turfToDelete));
             setDeleteModalVisible(false);
             setTurfToDelete(null);

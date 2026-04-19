@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, Modal, TouchableOpacity, TextInput, ScrollView, Image } from 'react-native';
 import { X, Search, Filter, MapPin, Star, ChevronLeft } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
-import api from '../../config/api'; // Ensure this exists for real API calls
+import apiClient from '../../src/api/apiClient';
 
 interface SearchModalProps {
   visible: boolean;
@@ -32,22 +32,23 @@ export default function SearchModal({ visible, onClose }: SearchModalProps) {
   const handleSearch = async () => {
     setLoading(true);
     try {
-      const res = await api.get('/venues');
-      const allVenues = res.data;
-      
-      const filteredResults = allVenues.filter((item: any) => {
-        const titleMatch = item.name.toLowerCase().includes(query.toLowerCase());
-        const sportMatch = activeFilter === 'All' || (item.sport || 'Football') === activeFilter;
-        return titleMatch && sportMatch;
+      // Use the backend filtering logic (search query and sport filter)
+      const res = await apiClient.get('/api/venues', {
+        params: {
+            search: query,
+            sport: activeFilter === 'All' ? undefined : activeFilter
+        }
       });
+      
+      const filteredResults = res.data.data || [];
 
       const formattedResults = filteredResults.map((item: any) => ({
           id: item._id,
           title: item.name,
-          sport: item.sport || 'Football',
+          sport: (item.sports && item.sports.length > 0) ? item.sports[0] : 'Football',
           rating: item.rating || 4.5,
           dist: item.location || 'Ahmedabad',
-          image: item.images && item.images.length > 0 ? item.images[0] : item.image || 'https://images.unsplash.com/photo-1593341646782-e0b495cff86d?q=80&w=500'
+          image: item.images && item.images.length > 0 ? item.images[0] : (item.image || 'https://images.unsplash.com/photo-1593341646782-e0b495cff86d?q=80&w=500')
       }));
 
       setResults(formattedResults);

@@ -4,7 +4,8 @@ import { AlertCircle, ArrowLeft, CheckCircle2, Eye, EyeOff, Lock, Mail, Phone, S
 import React, { useState } from 'react';
 import Animated, { FadeIn, FadeOut, ZoomIn, ZoomOut, SlideInUp, SlideOutDown, FadeInLeft, FadeInRight, FadeInUp, FadeInDown } from "react-native-reanimated";
 import { Image, ImageBackground, KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import api from '../config/api';
+import apiClient from '../../src/api/apiClient';
+
 
 
 // 10 PROFESSIONAL SPORTS & CARTOON AVATARS
@@ -78,11 +79,12 @@ export default function RegisterScreen() {
     }
 
     try {
-      await api.post('/auth/register', {
-        fullName: name,
+      await apiClient.post('/api/auth/register', {
+        name: name,
         email,
         phone,
         password,
+        role: 'user',
         avatar: selectedAvatar
       });
       
@@ -96,8 +98,8 @@ export default function RegisterScreen() {
       
     } catch (error: any) {
       let friendlyMsg = "Something went wrong. Please try again.";
-      if (error.response && error.response.data && error.response.data.msg) {
-        friendlyMsg = error.response.data.msg;
+      if (error.response && error.response.data && error.response.data.message) {
+        friendlyMsg = error.response.data.message;
       } else if (error.message) {
          friendlyMsg = `Error: ${error.message}`;
       }

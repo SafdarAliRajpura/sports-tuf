@@ -4,7 +4,7 @@ import { StyleSheet, View, Text, FlatList, Image, TouchableOpacity, TextInput, M
 import { Search, MapPin, Star, SlidersHorizontal, X, Check } from 'lucide-react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
-import api from '../../config/api';
+import apiClient from '../../src/api/apiClient';
 
 const SPORTS_FILTERS = ['All', 'Cricket', 'Football', 'Pickleball', 'Badminton'];
 
@@ -19,10 +19,10 @@ export default function ExploreScreen() {
   useEffect(() => {
     const fetchVenues = async () => {
         try {
-            const res = await api.get('/venues');
+            const res = await apiClient.get('/api/venues');
             
             // Format API data to match the component's needs
-            const formatted = res.data.map((v: any) => ({
+            const formatted = res.data.data.map((v: any) => ({
                 id: v._id,
                 name: v.name,
                 location: v.location || 'Ahmedabad',

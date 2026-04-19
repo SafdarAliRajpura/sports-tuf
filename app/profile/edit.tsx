@@ -1,12 +1,12 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import apiClient from '../../src/api/apiClient';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { ArrowLeft, Camera, Check, CheckCircle2, User } from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';
+import { getAvatarUrl } from '../../src/utils/imageUtils';
 import Animated, { FadeIn, FadeOut, ZoomIn, ZoomOut, SlideInUp, SlideOutDown, FadeInLeft, FadeInRight, FadeInUp, FadeInDown } from "react-native-reanimated";
 import { ActivityIndicator, Image, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-// import { auth, db } from '../config/firebase';
-// import { doc, getDoc, updateDoc } from 'firebase/firestore';
 
 const AVATARS = [
   { id: '1', url: 'https://api.dicebear.com/7.x/avataaars/png?seed=Felix' },
@@ -26,7 +26,6 @@ export default function EditProfileScreen() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   
-  // Form States
   const [name, setName] = useState('');
   const [selectedAvatar, setSelectedAvatar] = useState('');
 
@@ -36,9 +35,8 @@ export default function EditProfileScreen() {
           const jsonValue = await AsyncStorage.getItem('userInfo');
           if (jsonValue != null) {
             const user = JSON.parse(jsonValue);
-            setName(user.fullName || '');
-            // Check if user's avatar is in our list, if not use the first one or keep it as is
-            setSelectedAvatar(user.avatar || AVATARS[0].url);
+            setName(user.fullName || `${user.first_name || ''} ${user.last_name || ''}`.trim() || '');
+            setSelectedAvatar(getAvatarUrl(user.avatar || user.user_profile));
           }
       } catch (error) {
         console.error("Error loading user data:", error);
@@ -53,27 +51,34 @@ export default function EditProfileScreen() {
     if (!name.trim()) return;
     setSaving(true);
     try {
-        // Read existing user info to preserve other fields (like email, id)
-        const jsonValue = await AsyncStorage.getItem('userInfo');
-        let updatedUser = {};
-        if (jsonValue != null) {
-            updatedUser = JSON.parse(jsonValue);
+        const nameParts = name.trim().split(' ');
+        const first_name = nameParts[0];
+        const last_name = nameParts.length > 1 ? nameParts.slice(1).join(' ') : '';
+
+        const response = await apiClient.put('/api/auth/profile', {
+            first_name,
+            last_name,
+            user_profile: selectedAvatar
+        });
+
+        if (response.data && response.data.success) {
+            const updatedUser = response.data.data;
+            const jsonValue = await AsyncStorage.getItem('userInfo');
+            const currentUser = jsonValue ? JSON.parse(jsonValue) : {};
+            
+            const finalUser = {
+                ...updatedUser,
+                token: currentUser.token, 
+                fullName: `${updatedUser.first_name} ${updatedUser.last_name}`.trim(),
+                avatar: updatedUser.user_profile
+            };
+
+            await AsyncStorage.setItem('userInfo', JSON.stringify(finalUser));
+            router.back();
         }
-
-        // Update with new values
-        updatedUser = {
-            ...updatedUser,
-            fullName: name,
-            avatar: selectedAvatar
-        };
-
-        // Save back to AsyncStorage
-        await AsyncStorage.setItem('userInfo', JSON.stringify(updatedUser));
-        
-        // Go back to profile screen
-        router.back();
-    } catch (error) {
-      console.error("Error updating profile:", error);
+    } catch (error: any) {
+      console.error("Error updating profile:", error.response?.data || error.message);
+      alert("Failed to update profile on the server.");
     } finally {
       setSaving(false);
     }
@@ -91,7 +96,6 @@ export default function EditProfileScreen() {
     <View style={styles.container}>
       <StatusBar style="light" />
       
-      {/* HEADER BLOCK */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
           <ArrowLeft color="#FFFFFF" size={24} />
@@ -105,17 +109,15 @@ export default function EditProfileScreen() {
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
           
-          {/* CURRENT PREVIEW BLOCK */}
           <View style={styles.previewSection}>
             <View style={styles.mainAvatarContainer}>
-              <Image source={{ uri: selectedAvatar }} style={styles.mainAvatar} />
+              <Image source={{ uri: getAvatarUrl(selectedAvatar) }} style={styles.mainAvatar} />
               <View style={styles.cameraBadge}>
                 <Camera color="#000" size={16} />
               </View>
             </View>
           </View>
 
-          {/* AVATAR SELECTOR BLOCK */}
           <View style={styles.section}>
             <Text style={styles.sectionLabel}>CHOOSE YOUR PLAYER</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.avatarList}>
@@ -132,7 +134,6 @@ export default function EditProfileScreen() {
             </ScrollView>
           </View>
 
-          {/* INPUT BLOCK */}
           <View style={styles.section}>
             <Text style={styles.sectionLabel}>FULL NAME</Text>
             <View style={styles.inputWrapper}>
@@ -154,133 +155,24 @@ export default function EditProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-  // --- MAIN CONTAINER ---
-  container: {
-    flex: 1,
-    backgroundColor: '#070A14',
-  },
-  loadingContainer: {
-    flex: 1,
-    backgroundColor: '#070A14',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-
-  // --- HEADER BLOCK ---
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingTop: 60,
-    paddingBottom: 20,
-    paddingHorizontal: 20,
-    backgroundColor: '#0F172A',
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#1E293B',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  headerTitle: {
-    color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: '800',
-  },
-  saveButton: {
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-
-  // --- PREVIEW BLOCK ---
-  scrollContent: {
-    padding: 25,
-  },
-  previewSection: {
-    alignItems: 'center',
-    marginVertical: 30,
-  },
-  mainAvatarContainer: {
-    position: 'relative',
-  },
-  mainAvatar: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    borderWidth: 4,
-    borderColor: '#00FF00',
-    backgroundColor: '#1E293B',
-  },
-  cameraBadge: {
-    position: 'absolute',
-    bottom: 5,
-    right: 5,
-    backgroundColor: '#00FF00',
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 3,
-    borderColor: '#070A14',
-  },
-
-  // --- AVATAR SELECTION BLOCK ---
-  section: {
-    marginBottom: 35,
-  },
-  sectionLabel: {
-    color: '#64748B',
-    fontSize: 12,
-    fontWeight: '800',
-    marginBottom: 15,
-    letterSpacing: 1,
-  },
-  avatarList: {
-    gap: 15,
-  },
-  avatarWrapper: {
-    position: 'relative',
-  },
-  avatarOption: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.1)',
-    backgroundColor: '#1E293B',
-  },
-  activeAvatar: {
-    borderColor: '#00FF00',
-  },
-  miniCheck: {
-    position: 'absolute',
-    bottom: -2,
-    right: -2,
-    backgroundColor: '#000',
-    borderRadius: 10,
-  },
-
-  // --- INPUT BLOCK ---
-  inputWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#1E293B',
-    borderRadius: 16,
-    paddingHorizontal: 20,
-    height: 65,
-    gap: 15,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.05)',
-  },
-  input: {
-    flex: 1,
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
-  },
+  container: { flex: 1, backgroundColor: '#070A14' },
+  loadingContainer: { flex: 1, backgroundColor: '#070A14', justifyContent: 'center', alignItems: 'center' },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 60, paddingBottom: 20, paddingHorizontal: 20, backgroundColor: '#0F172A' },
+  backButton: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#1E293B', justifyContent: 'center', alignItems: 'center' },
+  headerTitle: { color: '#FFFFFF', fontSize: 18, fontWeight: '800' },
+  saveButton: { width: 40, height: 40, justifyContent: 'center', alignItems: 'center' },
+  scrollContent: { padding: 25 },
+  previewSection: { alignItems: 'center', marginVertical: 30 },
+  mainAvatarContainer: { position: 'relative' },
+  mainAvatar: { width: 120, height: 120, borderRadius: 60, borderWidth: 4, borderColor: '#00FF00', backgroundColor: '#1E293B' },
+  cameraBadge: { position: 'absolute', bottom: 5, right: 5, backgroundColor: '#00FF00', width: 32, height: 32, borderRadius: 16, justifyContent: 'center', alignItems: 'center', borderWidth: 3, borderColor: '#070A14' },
+  section: { marginBottom: 35 },
+  sectionLabel: { color: '#64748B', fontSize: 12, fontWeight: '800', marginBottom: 15, letterSpacing: 1 },
+  avatarList: { gap: 15 },
+  avatarWrapper: { position: 'relative' },
+  avatarOption: { width: 70, height: 70, borderRadius: 35, borderWidth: 2, borderColor: 'rgba(255,255,255,0.1)', backgroundColor: '#1E293B' },
+  activeAvatar: { borderColor: '#00FF00' },
+  miniCheck: { position: 'absolute', bottom: -2, right: -2, backgroundColor: '#000', borderRadius: 10 },
+  inputWrapper: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#1E293B', borderRadius: 16, paddingHorizontal: 20, height: 65, gap: 15, borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)' },
+  input: { flex: 1, color: '#FFFFFF', fontSize: 16, fontWeight: '600' },
 });

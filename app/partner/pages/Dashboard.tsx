@@ -26,7 +26,7 @@ const StatCard = ({ title, value, change, isPositive, iconName, iconColor, delay
     </Animated.View>
 );
 
-import api from '../../config/api';
+import apiClient from '../../../src/api/apiClient';
 
 export default function Dashboard() {
     const { width } = useWindowDimensions();
@@ -52,7 +52,7 @@ export default function Dashboard() {
             // but for now we aggregate from my-venues and my bookings/all bookings
             
             // Actually let's assume there's a specific route or we build the stats from venues/bookings
-            const venuesRes = await api.get('/venues/my-venues');
+            const venuesRes = await apiClient.get('/api/venues/my-venues');
             const myVenues = venuesRes.data;
             
             // As a quick fallback for this app, we mock the dynamic calc based on total my-venues

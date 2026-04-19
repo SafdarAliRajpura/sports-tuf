@@ -1,5 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import apiClient from '../../src/api/apiClient';
 import { useFocusEffect, useRouter } from 'expo-router';
+import { getAvatarUrl } from '../../src/utils/imageUtils';
 import { StatusBar } from 'expo-status-bar';
 import { ChevronRight, CreditCard, Edit3, HelpCircle, History, LogOut, Medal, Settings, Trophy } from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';
@@ -19,15 +21,29 @@ export default function ProfileScreen() {
     React.useCallback(() => {
       const fetchUserData = async () => {
         try {
-          const jsonValue = await AsyncStorage.getItem('userInfo');
-          if (jsonValue != null) {
-            setUserData(JSON.parse(jsonValue));
-          } else {
-             // Fallback or redirect to login if no user data found
-             // We won't redirect here immediately to avoid loops if something is wrong, just show empty
+          // Fetch real stats from the backend /api/auth/me
+          const res = await apiClient.get('/api/auth/me');
+          if (res.data && res.data.success) {
+            const serverUser = res.data.data;
+            const jsonValue = await AsyncStorage.getItem('userInfo');
+            const localUser = jsonValue ? JSON.parse(jsonValue) : {};
+            
+            const mergedUser = {
+                ...serverUser,
+                token: localUser.token, // Preserve token for API calls
+                fullName: `${serverUser.first_name} ${serverUser.last_name}`.trim(),
+                avatar: serverUser.user_profile
+            };
+            
+            setUserData(mergedUser);
+            // Optional: Update storage so we have it offline
+            await AsyncStorage.setItem('userInfo', JSON.stringify(mergedUser));
           }
         } catch (error) {
-          console.error("Error fetching user data:", error);
+          console.error("Error fetching user data from server:", error);
+          // Fallback to local storage if offline
+          const jsonValue = await AsyncStorage.getItem('userInfo');
+          if (jsonValue) setUserData(JSON.parse(jsonValue));
         } finally {
           setLoading(false);
         }
@@ -73,7 +89,7 @@ export default function ProfileScreen() {
         <View style={styles.profileInfo}>
           <View style={styles.avatarContainer}>
             <Image
-              source={{ uri: userData?.avatar || 'https://api.dicebear.com/7.x/avataaars/png?seed=Felix' }}
+              source={{ uri: getAvatarUrl(userData?.avatar || userData?.user_profile) }}
               style={styles.avatar}
             />
             <View style={styles.onlineBadge} />
@@ -88,7 +104,7 @@ export default function ProfileScreen() {
 
           <View style={styles.rankBadge}>
             <Trophy color="#00FF00" size={14} />
-            <Text style={styles.rankText}>Elite Division</Text>
+            <Text style={styles.rankText}>{userData?.skillLevel || 'Rookie'} Division</Text>
           </View>
         </View>
       </View>
@@ -96,18 +112,18 @@ export default function ProfileScreen() {
       {/* STATS OVERVIEW */}
       <View style={styles.statsContainer}>
         <View style={styles.statBox}>
-          <Text style={styles.statNumber}>42</Text>
+          <Text style={styles.statNumber}>{userData?.stats?.totalBookings || 0}</Text>
           <Text style={styles.statLabel}>Matches</Text>
         </View>
         <View style={styles.divider} />
         <View style={styles.statBox}>
-          <Text style={styles.statNumber}>850</Text>
-          <Text style={styles.statLabel}>Karma</Text>
+          <Text style={styles.statNumber}>{userData?.xp || 0}</Text>
+          <Text style={styles.statLabel}>XP</Text>
         </View>
         <View style={styles.divider} />
         <View style={styles.statBox}>
-          <Text style={styles.statNumber}>12</Text>
-          <Text style={styles.statLabel}>MVP</Text>
+          <Text style={styles.statNumber}>{userData?.stats?.tournamentEntries || 0}</Text>
+          <Text style={styles.statLabel}>Events</Text>
         </View>
       </View>
 
@@ -117,7 +133,7 @@ export default function ProfileScreen() {
       >
         <Text style={styles.sectionHeader}>ACCOUNT</Text>
 
-        <TouchableOpacity style={styles.menuItem}>
+        <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/profile/history')}>
           <View style={styles.menuIconBox}>
             <History color="#FFFFFF" size={20} />
           </View>

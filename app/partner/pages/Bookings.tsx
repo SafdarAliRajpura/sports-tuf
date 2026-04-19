@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, ActivityIndicator, useWindowDimensions } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import Animated, { FadeInUp } from 'react-native-reanimated';
-import api from '../../config/api';
+import apiClient from '../../../src/api/apiClient';
 
 export default function PartnerBookings() {
     const { width } = useWindowDimensions();
@@ -18,7 +18,7 @@ export default function PartnerBookings() {
     const fetchBookings = async () => {
         try {
             setLoading(true);
-            const res = await api.get('/bookings/partner');
+            const res = await apiClient.get('/api/bookings/partner');
             setBookings(res.data);
         } catch (error) {
             console.error('Error fetching bookings:', error);

@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, Activi
 import { Feather } from '@expo/vector-icons';
 import Animated, { FadeInUp, FadeInRight, SlideInRight, SlideOutRight } from 'react-native-reanimated';
 import moment from 'moment';
-import api from '../../config/api';
+import apiClient from '../../../src/api/apiClient';
 
 export default function Users() {
   const [users, setUsers] = useState<any[]>([]);
@@ -19,7 +19,7 @@ export default function Users() {
 
   const fetchUsers = async () => {
     try {
-      const response = await api.get('/auth'); // Calls the new GET route we added
+      const response = await apiClient.get('/api/auth'); // Calls the new GET route we added
       setUsers(response.data);
     } catch (error) {
       console.error('Error fetching users:', error);
@@ -32,7 +32,7 @@ export default function Users() {
     setActiveDropdownId(null);
     try {
       const newStatus = currentStatus === 'active' ? 'banned' : 'active';
-      const response = await api.put(`/auth/${userId}/status`, { status: newStatus });
+      const response = await apiClient.put(`/api/auth/${userId}/status`, { status: newStatus });
       setUsers(users.map(u => u._id === userId ? { ...u, status: response.data.status } : u));
     } catch (err: any) {
       console.error(err);

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Clock, MapPin, CheckCircle } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
-import api from '../../config/api';
+import apiClient from '../../src/api/apiClient';
 
 export default function NextMatchCard({ userId }: { userId: string }) {
   const router = useRouter();
@@ -12,15 +12,13 @@ export default function NextMatchCard({ userId }: { userId: string }) {
   useEffect(() => {
     const fetchNextMatch = async () => {
       try {
-        // Ideally fetch from an endpoint like /bookings/upcoming?limit=1
-        // For now, we will fetch all and filter client side or assume backend support
-        // This is a placeholder for the actual logic
-        const res = await api.get(`/bookings/filter?userId=${userId}`);
-        // Mocking logic: find the first upcoming booking
-        // In real app: Backend should return sorted upcoming bookings
-        if (res.data && res.data.length > 0) {
-            // Simple logic: just take the first one for now
-            setNextMatch(res.data[0]); 
+        const res = await apiClient.get('/api/bookings');
+        // Filter client-side if backend doesn't support query params on /api/bookings
+        const appointments = res.data.data || [];
+        const userMatches = appointments.filter((b: any) => b.userId === userId);
+        
+        if (userMatches.length > 0) {
+            setNextMatch(userMatches[0]); 
         }
       } catch (error) {
         console.log('Error fetching next match', error);

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, useWindowDimensions, Platform, Modal, TextInput, ActivityIndicator, Alert } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import Animated, { FadeInUp, SlideInUp, SlideOutDown } from 'react-native-reanimated';
-import api from '../../config/api';
+import apiClient from '../../../src/api/apiClient';
 
 const AVAILABLE_SPORTS = ['Football', 'Cricket', 'Pickleball', 'Badminton', 'Basketball'];
 
@@ -43,8 +43,8 @@ export default function Tournaments() {
     const fetchTournaments = async () => {
         try {
             setLoading(true);
-            const res = await api.get('/tournaments');
-            setTournaments(res.data);
+            const res = await apiClient.get('/api/tournaments');
+            setTournaments(res.data.data);
         } catch (error) {
             console.error(error);
         } finally {
@@ -78,7 +78,7 @@ export default function Tournaments() {
         }];
 
         try {
-            const res = await api.put(`/tournaments/${activeTournament._id}`, { rounds: newRounds, status: 'Ongoing' });
+            const res = await apiClient.put(`/api/tournaments/${activeTournament._id}`, { rounds: newRounds, status: 'Ongoing' });
             setActiveTournament(res.data);
             setTournaments(tournaments.map(t => t._id === activeTournament._id ? res.data : t));
             setManageTab('BRACKET');
@@ -109,20 +109,21 @@ export default function Tournaments() {
         try {
             setIsSubmitting(true);
             const payload = {
-                title,
-                game,
+                name: title,
+                category: game,
                 location,
-                startDate,
+                date: startDate,
                 prizePool,
-                entryFee: Number(entryFee),
-                maxTeams: Number(maxTeams),
+                entryFee: String(entryFee),
+                totalSlots: Number(maxTeams),
                 description,
                 format,
-                courts: Number(courts),
-                image: 'https://images.unsplash.com/photo-1543351611-58f69d7c1781?q=80&w=800' // Default banner
+                venue: '65d4c8f9a4b3c2e1d0000001', // Example Venue ID
+                partner: '65d4c8f9a4b3c2e1d0000002', // Example Partner ID
+                image: 'https://images.unsplash.com/photo-1543351611-58f69d7c1781?q=80&w=800'
             };
 
-            const res = await api.post('/tournaments', payload);
+            const res = await apiClient.post('/api/tournaments', payload);
             setTournaments([...tournaments, res.data]);
             setModalVisible(false);
             resetForm();
@@ -171,12 +172,12 @@ export default function Tournaments() {
                             </View>
                             
                             <View style={styles.cardContent}>
-                                <Text style={styles.gameTag}>{t.game.toUpperCase()}</Text>
-                                <Text style={styles.title} numberOfLines={2}>{t.title}</Text>
+                                <Text style={styles.gameTag}>{t.category?.toUpperCase() || t.game?.toUpperCase()}</Text>
+                                <Text style={styles.title} numberOfLines={2}>{t.name || t.title}</Text>
                                 
                                 <View style={styles.detailsRow}>
                                     <Feather name="calendar" size={12} color="#64748B" />
-                                    <Text style={styles.detailText}>{new Date(t.startDate).toLocaleDateString() || t.startDate}</Text>
+                                    <Text style={styles.detailText}>{new Date(t.date || t.startDate).toLocaleDateString()}</Text>
                                 </View>
                                 <View style={styles.detailsRow}>
                                     <Feather name="map-pin" size={12} color="#64748B" />

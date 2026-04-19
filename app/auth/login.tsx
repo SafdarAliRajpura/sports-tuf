@@ -5,7 +5,8 @@ import { AlertCircle, ArrowRight, Eye, EyeOff, Lock, Mail } from 'lucide-react-n
 import Animated, { FadeIn, FadeOut, ZoomIn, ZoomOut, SlideInUp, SlideOutDown, FadeInLeft, FadeInRight, FadeInUp, FadeInDown } from "react-native-reanimated";
 import React, { useState } from 'react';
 import { ActivityIndicator, ImageBackground, KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import api from '../config/api';
+import apiClient from '../../src/api/apiClient';
+
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -60,15 +61,18 @@ export default function LoginScreen() {
     setLoading(true);
     setIsBanned(false);
     try {
-      const response = await api.post('/auth/login', {
+      const response = await apiClient.post('/api/auth/login', {
         email,
         password
       });
 
-      if (response.data && response.data.user) {
-        await AsyncStorage.setItem('userInfo', JSON.stringify(response.data.user));
-        // You can also store a token here if you implement JWT later
-        // await AsyncStorage.setItem('userToken', response.data.token);
+
+      if (response.data && response.data.data) {
+        const userInfo = response.data.data;
+        await AsyncStorage.setItem('userInfo', JSON.stringify(userInfo));
+        if (userInfo.token) {
+           await AsyncStorage.setItem('userToken', userInfo.token);
+        }
         
         router.replace('/(tabs)/home' as any);
       }
@@ -77,8 +81,8 @@ export default function LoginScreen() {
       if (error.response && error.response.status === 403) {
          setIsBanned(true);
          friendlyMsg = error.response.data.msg || "Your account has been suspended by the administrator.";
-      } else if (error.response && error.response.data && error.response.data.msg) {
-        friendlyMsg = error.response.data.msg;
+      } else if (error.response && error.response.data && error.response.data.message) {
+        friendlyMsg = error.response.data.message;
       } else if (error.message) {
          friendlyMsg = error.message;
       }

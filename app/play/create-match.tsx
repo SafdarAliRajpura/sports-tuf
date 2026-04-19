@@ -3,7 +3,7 @@ import { ArrowLeft, Calendar, Clock, MapPin, Users, DollarSign, ChevronDown, Che
 import React, { useState } from 'react';
 import Animated, { FadeIn, FadeOut, ZoomIn, ZoomOut, SlideInUp, SlideOutDown, FadeInLeft, FadeInRight, FadeInUp, FadeInDown } from "react-native-reanimated";
 import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, Alert, Modal, FlatList } from 'react-native';
-import api from '../../config/api';
+import apiClient from '../../src/api/apiClient';
 // @ts-ignore
 import { VENUES } from '../../data/venues';
 
@@ -70,7 +70,7 @@ export default function CreateMatchScreen() {
         description: `Join my ${sport} match!`
       };
 
-      await api.post('/matches', matchData);
+      await apiClient.post('/api/matches', matchData);
 
       setLoading(false);
       setShowSuccess(true);

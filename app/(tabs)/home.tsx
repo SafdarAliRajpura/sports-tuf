@@ -25,7 +25,8 @@ import NotificationModal from '../../components/home/NotificationModal';
 import SearchModal from '../../components/home/SearchModal';
 import PlayTab from '../../components/home/PlayTab';
 import TrainTab from '../../components/train/TrainTab';
-import api from '../config/api';
+import apiClient from '../../src/api/apiClient';
+import { getAvatarUrl } from '../../src/utils/imageUtils';
 
 const { width } = Dimensions.get('window');
 
@@ -47,6 +48,8 @@ export default function ArenaHomeScreen() {
   const [showSearch, setShowSearch] = useState(false);
   const [venues, setVenues] = useState<any[]>([]);
   const [tournaments, setTournaments] = useState<any[]>([]);
+  const [leaderboard, setLeaderboard] = useState<any[]>([]);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
   const handleCategoryPress = (sportName: string) => {
     setSelectedCategory(sportName);
@@ -62,8 +65,9 @@ export default function ArenaHomeScreen() {
           const userData = await AsyncStorage.getItem('userInfo');
           if (userData) {
             const user = JSON.parse(userData);
-            setUserName(user.fullName || 'Champion');
-            setAvatar(user.avatar || 'https://api.dicebear.com/7.x/avataaars/png?seed=Felix');
+            setUserName(user.name || user.fullName || 'Champion');
+            setAvatar(getAvatarUrl(user.avatar || user.user_profile));
+            setCurrentUserId(user._id || user.id || null);
           }
         } catch (e) {
           console.error("Failed to load user info", e);
@@ -72,8 +76,8 @@ export default function ArenaHomeScreen() {
       
       const loadVenues = async () => {
          try {
-             const res = await api.get('/venues');
-             setVenues(res.data);
+             const res = await apiClient.get('/api/venues');
+             setVenues(res.data.data);
          } catch (e) {
              console.error("Failed to load venues", e);
          }
@@ -81,16 +85,28 @@ export default function ArenaHomeScreen() {
 
       const loadTournaments = async () => {
          try {
-             const res = await api.get('/tournaments');
-             setTournaments(res.data);
+             const res = await apiClient.get('/api/tournaments');
+             setTournaments(res.data.data);
          } catch (e) {
              console.error("Failed to load tournaments", e);
          }
       };
 
+      const loadLeaderboard = async () => {
+        try {
+          const res = await apiClient.get('/api/leaderboard');
+          if (res.data && res.data.success) {
+            setLeaderboard(res.data.data);
+          }
+        } catch (e) {
+          console.error("Failed to load leaderboard", e);
+        }
+      };
+
       loadUser();
       loadVenues();
       loadTournaments();
+      loadLeaderboard();
     }, [])
   );
 
@@ -126,7 +142,7 @@ export default function ArenaHomeScreen() {
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
 
         {/* 2. NEXT MATCH CARD (NEW) */}
-        <NextMatchCard userId="65d4c8f9a4b3c2e1d0000002" />
+        {currentUserId && <NextMatchCard userId={currentUserId} />}
 
         {/* 3. TAB SELECTOR BLOCK */}
         <View style={styles.tabContainer}>
@@ -171,26 +187,18 @@ export default function ArenaHomeScreen() {
               <TouchableOpacity><Text style={styles.seeAllText}>FULL RANKINGS</Text></TouchableOpacity>
             </View>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalScroll}>
-              <PlayerCard 
-                rank={1} 
-                name="Alex 'The Jet'" 
-                points="2,450" 
-                avatar="https://api.dicebear.com/7.x/avataaars/png?seed=Felix" 
-                tag="MVP"
-              />
-              <PlayerCard 
-                rank={2} 
-                name="Sarah Strike" 
-                points="2,120" 
-                avatar="https://api.dicebear.com/7.x/avataaars/png?seed=Aneka" 
-                tag="PRO"
-              />
-              <PlayerCard 
-                rank={3} 
-                name="Mike Defense" 
-                points="1,980" 
-                avatar="https://api.dicebear.com/7.x/avataaars/png?seed=Max" 
-              />
+              {leaderboard.length > 0 ? leaderboard.map((player, idx) => (
+                <PlayerCard 
+                  key={player._id || idx}
+                  rank={idx + 1} 
+                  name={player.fullName || `${player.first_name} ${player.last_name}`} 
+                  points={player.xp || player.points || 0} 
+                  avatar={getAvatarUrl(player.avatar || player.user_profile)} 
+                  tag={idx === 0 ? 'MVP' : (idx < 3 ? 'PRO' : null)}
+                />
+              )) : (
+                <Text style={{ color: '#94A3B8', fontSize: 13, marginLeft: 20 }}>Updating rankings...</Text>
+              )}
             </ScrollView>
     
             <View style={styles.sectionHeader}>
@@ -210,8 +218,8 @@ export default function ArenaHomeScreen() {
             {/* 7. OFFER BLOCK */}
             <View style={styles.offerBanner}>
               <View style={styles.offerContent}>
-                <Text style={styles.offerTitle}>EARN KARMA POINTS</Text>
-                <Text style={styles.offerSubtitle}>Get discounts on every booking</Text>
+                <Text style={styles.offerTitle}>EARN XP POINTS</Text>
+                <Text style={styles.offerSubtitle}>Get rewards on every booking</Text>
               </View>
               <Trophy color="#00FF00" size={32} />
             </View>
@@ -231,28 +239,62 @@ export default function ArenaHomeScreen() {
             {/* 9. TOURNAMENT BLOCK */}
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>Elite Tournaments</Text>
+              <TouchableOpacity onPress={() => router.push('/tournament/all')}>
+                <Text style={styles.seeAllText}>VIEW ALL</Text>
+              </TouchableOpacity>
             </View>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingLeft: 20, paddingRight: 20 }}>
-            {tournaments.length > 0 ? tournaments.map(t => (
-                <TouchableOpacity key={t._id} style={[styles.tournamentCard, { width: 330, marginRight: 20, marginHorizontal: 0 }]} onPress={() => router.push(`/tournament/${t._id}`)}>
-                  <ImageBackground source={{ uri: t.image || 'https://images.unsplash.com/photo-1508098682722-e99c43a406b2?q=80&w=800' }} style={styles.tournamentBg} imageStyle={{ borderRadius: 20 }}>
-                    <View style={styles.tournamentOverlay}>
-                      <View style={[styles.regBadge, t.status === 'Ongoing' && { backgroundColor: '#F59E0B' }, t.status === 'Completed' && { backgroundColor: '#64748B' }]}>
-                        <Text style={[styles.regBadgeText, (t.status === 'Ongoing' || t.status === 'Completed') && { color: '#FFF' }]}>
-                             {t.status === 'Ongoing' ? 'IN PROGRESS' : (t.status === 'Completed' ? 'COMPLETED' : 'REGISTRATION OPEN')}
-                        </Text>
-                      </View>
-                      <Text style={styles.tournamentTitle}>{t.title}</Text>
-                      <View style={styles.tournamentDetailRow}>
-                        <Calendar color="#00FF00" size={14} />
-                        <Text style={styles.tournamentDetailText}>{new Date(t.startDate).toLocaleDateString()}</Text>
-                        <Users color="#00FF00" size={14} style={{ marginLeft: 15 }} />
-                        <Text style={styles.tournamentDetailText}>{t.registeredTeams?.length || 0} / {t.maxTeams} Teams</Text>
-                      </View>
-                    </View>
-                  </ImageBackground>
-                </TouchableOpacity>
-             )) : (
+            {tournaments.length > 0 ? tournaments.map(t => {
+                const totalSlots = t.totalSlots || t.maxTeams || 16;
+                const registered = t.registeredTeams || 0;
+                const slotsLeft = Math.max(0, totalSlots - registered);
+                
+                let statusLabel = 'REGISTRATION OPEN';
+                let statusColor = '#00FF00';
+                
+                if (t.status === 'Completed') {
+                    statusLabel = 'COMPLETED';
+                    statusColor = '#64748B';
+                } else if (t.status === 'Ongoing') {
+                    statusLabel = 'IN PROGRESS';
+                    statusColor = '#F59E0B';
+                } else if (slotsLeft === 0) {
+                    statusLabel = 'HOUSEFULL';
+                    statusColor = '#EF4444';
+                } else if (slotsLeft < 5) {
+                    statusLabel = 'FILLING FAST';
+                    statusColor = '#F59E0B';
+                }
+
+                return (
+                    <TouchableOpacity key={t._id} style={[styles.tournamentCard, { width: 330, marginRight: 20, marginHorizontal: 0 }]} onPress={() => router.push(`/tournament/${t._id}`)}>
+                      <ImageBackground source={{ uri: t.image || 'https://images.unsplash.com/photo-1508098682722-e99c43a406b2?q=80&w=800' }} style={styles.tournamentBg} imageStyle={{ borderRadius: 20 }}>
+                        <View style={styles.tournamentOverlay}>
+                          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                            <View style={[styles.regBadge, { backgroundColor: statusColor }]}>
+                                <Text style={[styles.regBadgeText, (statusLabel !== 'REGISTRATION OPEN') && { color: '#FFF' }]}>
+                                    {statusLabel}
+                                </Text>
+                            </View>
+                            {t.prizePool && (
+                                <View style={{ backgroundColor: 'rgba(0,0,0,0.6)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, borderWidth: 1, borderColor: '#FFD700' }}>
+                                    <Text style={{ color: '#FFD700', fontSize: 10, fontWeight: '900' }}>₹{t.prizePool} PRIZE</Text>
+                                </View>
+                            )}
+                          </View>
+                          
+                          <Text style={styles.tournamentTitle}>{t.name || t.title}</Text>
+                          <View style={styles.tournamentDetailRow}>
+                            <Calendar color="#00FF00" size={14} />
+                            <Text style={styles.tournamentDetailText}>{t.date || new Date(t.startDate).toLocaleDateString()}</Text>
+                            <Users color="#00FF00" size={14} style={{ marginLeft: 15 }} />
+                            <Text style={styles.tournamentDetailText}>{registered} / {totalSlots} Teams</Text>
+                          </View>
+                        </View>
+                      </ImageBackground>
+                    </TouchableOpacity>
+                );
+             }) : (
                  <Text style={{ color: '#94A3B8', fontSize: 13, marginTop: 10, marginBottom: 40, marginLeft: 20 }}>No elite tournaments active.</Text>
              )}
             </ScrollView>
@@ -511,7 +553,7 @@ function PlayerCard({ rank, name, points, avatar, tag }: any) {
       <Image source={{ uri: avatar }} style={[styles.playerAvatar, { borderColor: rankColor }]} />
       
       <Text style={styles.playerName} numberOfLines={1}>{name}</Text>
-      <Text style={styles.playerPoints}>{points} KP</Text>
+      <Text style={styles.playerPoints}>{points} XP</Text>
       
       {tag && (
         <View style={{ position: 'absolute', top: 10, left: 10, paddingHorizontal: 6, paddingVertical: 2, backgroundColor: tag === 'MVP' ? '#FFD700' : '#3B82F6', borderRadius: 4 }}>
