@@ -1,9 +1,9 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, ActivityIndicator, Dimensions, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image, ActivityIndicator, Dimensions, Platform, Linking } from 'react-native';
 import MapView, { Marker, Callout, PROVIDER_GOOGLE } from 'react-native-maps';
 import { useUserLocation } from '@/hooks/useUserLocation';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { ArrowLeft, Navigation, MapPin, Star, Zap, Info } from 'lucide-react-native';
+import { ArrowLeft, Navigation, MapPin, Star, Zap, Info, LocateFixed, Trophy } from 'lucide-react-native';
 import apiClient from '@/src/api/apiClient';
 import { StatusBar } from 'expo-status-bar';
 import Animated, { FadeInUp, FadeInRight } from 'react-native-reanimated';
@@ -46,12 +46,10 @@ export default function ExploreScreen() {
                 const venueData = res.data.success ? res.data.data : res.data;
                 setVenues(venueData);
 
-                // If focusId is provided, find and select that venue
                 if (focusId && Array.isArray(venueData)) {
                     const venueToFocus = venueData.find(v => v._id === focusId);
                     if (venueToFocus) {
                         setSelectedVenue(venueToFocus);
-                        // Small delay to ensure map is ready
                         setTimeout(() => {
                             if (mapRef.current) {
                                 mapRef.current.animateToRegion({
@@ -80,6 +78,36 @@ export default function ExploreScreen() {
                 latitudeDelta: 0.05,
                 longitudeDelta: 0.05,
             }, 1000);
+        }
+    };
+
+    const openDirections = () => {
+        if (!selectedVenue) return;
+        const lat = selectedVenue.coordinates?.lat || 23.0225;
+        const lng = selectedVenue.coordinates?.lng || 72.5714;
+        const label = selectedVenue.name;
+        
+        const url = Platform.select({
+            ios: `maps:0,0?q=${label}@${lat},${lng}`,
+            android: `geo:0,0?q=${lat},${lng}(${label})`
+        });
+
+        if (url) {
+            Linking.canOpenURL(url).then(supported => {
+                if (supported) {
+                    Linking.openURL(url);
+                } else {
+                    console.error("Don't know how to open URI: " + url);
+                }
+            });
+        }
+    };
+
+    const handleNavigationPress = () => {
+        if (selectedVenue) {
+            openDirections();
+        } else {
+            centerOnUser();
         }
     };
 
@@ -122,10 +150,12 @@ export default function ExploreScreen() {
                         }}
                         onPress={() => setSelectedVenue(venue)}
                     >
-                        <View style={styles.markerContainer}>
-                            <View style={styles.markerGlow} />
-                            <View style={styles.markerPin}>
-                                <Zap size={14} color="#000" fill="#000" />
+                        <View style={styles.markerOuterContainer}>
+                            <View style={styles.markerContainer}>
+                                <View style={[styles.markerGlow, selectedVenue?._id === venue._id && styles.markerGlowActive]} />
+                                <View style={[styles.markerPin, selectedVenue?._id === venue._id && styles.markerPinActive]}>
+                                    <Trophy size={14} color={selectedVenue?._id === venue._id ? "#000" : "#00FF00"} fill={selectedVenue?._id === venue._id ? "#000" : "transparent"} />
+                                </View>
                             </View>
                         </View>
                         
@@ -147,7 +177,6 @@ export default function ExploreScreen() {
                 ))}
             </MapView>
 
-            {/* OVERLAY COMPONENTS */}
             <View style={styles.header}>
                 <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
                     <ArrowLeft color="#FFF" size={24} />
@@ -158,8 +187,18 @@ export default function ExploreScreen() {
                 </View>
             </View>
 
-            <TouchableOpacity style={styles.locationBtn} onPress={centerOnUser}>
-                <Navigation color="#000" size={24} />
+            <TouchableOpacity 
+                style={[
+                    styles.locationBtn, 
+                    selectedVenue && { backgroundColor: '#FFFFFF', borderColor: '#00FF00', borderWidth: 2 }
+                ]} 
+                onPress={handleNavigationPress}
+            >
+                {selectedVenue ? (
+                    <Navigation color="#000" size={24} fill="#00FF00" />
+                ) : (
+                    <LocateFixed color="#000" size={24} />
+                )}
             </TouchableOpacity>
 
             {selectedVenue && (
@@ -213,9 +252,12 @@ const styles = StyleSheet.create({
 
     locationBtn: { position: 'absolute', bottom: 120, right: 20, width: 55, height: 55, borderRadius: 20, backgroundColor: '#00FF00', justifyContent: 'center', alignItems: 'center', shadowColor: '#00FF00', shadowOpacity: 0.3, shadowRadius: 10, elevation: 5 },
 
+    markerOuterContainer: { width: 60, height: 60, alignItems: 'center', justifyContent: 'center' }, // Large container to prevent clipping
     markerContainer: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-    markerGlow: { position: 'absolute', width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(0, 255, 0, 0.2)', borderWidth: 1, borderColor: 'rgba(0, 255, 0, 0.4)' },
-    markerPin: { width: 24, height: 24, borderRadius: 12, backgroundColor: '#00FF00', justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: '#090E1A' },
+    markerGlow: { position: 'absolute', width: 34, height: 34, borderRadius: 17, backgroundColor: 'rgba(0, 255, 0, 0.1)', borderWidth: 1, borderColor: 'rgba(0, 255, 0, 0.2)' },
+    markerGlowActive: { backgroundColor: 'rgba(0, 255, 0, 0.4)', width: 54, height: 54, borderRadius: 27 },
+    markerPin: { width: 30, height: 30, borderRadius: 15, backgroundColor: '#090E1A', justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: '#00FF00' },
+    markerPinActive: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#00FF00', shadowColor: '#00FF00', shadowOpacity: 0.5, shadowRadius: 10, elevation: 5 },
 
     calloutContainer: { width: 160, backgroundColor: '#131C31', borderRadius: 18, padding: 12, borderWidth: 1, borderColor: 'rgba(0,255,0,0.3)', shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 10 },
     calloutTitle: { color: '#FFF', fontSize: 14, fontWeight: '900', marginBottom: 6 },

@@ -1,8 +1,14 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Constants from 'expo-constants';
+
+// Dynamically get the host machine's IP for Zero-Config connectivity
+const debuggerHost = Constants.expoConfig?.hostUri;
+const localhost = debuggerHost?.split(':').shift() || '192.168.68.171';
+const API_URL = `http://${localhost}:5000`;
 
 const apiClient = axios.create({
-  baseURL: 'http://10.48.61.171:5000',
+  baseURL: API_URL,
   timeout: 15000,
   headers: {
     'Content-Type': 'application/json',
@@ -31,9 +37,10 @@ apiClient.interceptors.request.use(
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
+    const fullUrl = `${error.config?.baseURL}${error.config?.url}`;
     console.error('API Call Failure:', {
        message: error.message,
-       url: error.config?.url,
+       fullUrl: fullUrl,
        method: error.config?.method,
        status: error.response?.status
     });
