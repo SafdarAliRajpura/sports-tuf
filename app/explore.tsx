@@ -149,13 +149,16 @@ export default function ExploreScreen() {
                             longitude: venue.coordinates?.lng || 72.5714
                         }}
                         onPress={() => setSelectedVenue(venue)}
+                        zIndex={selectedVenue?._id === venue._id ? 999 : 1}
+                        anchor={{ x: 0.5, y: 0.5 }}
                     >
                         <View style={styles.markerOuterContainer}>
-                            <View style={styles.markerContainer}>
-                                <View style={[styles.markerGlow, selectedVenue?._id === venue._id && styles.markerGlowActive]} />
-                                <View style={[styles.markerPin, selectedVenue?._id === venue._id && styles.markerPinActive]}>
-                                    <Trophy size={14} color={selectedVenue?._id === venue._id ? "#000" : "#00FF00"} fill={selectedVenue?._id === venue._id ? "#000" : "transparent"} />
-                                </View>
+                            <View style={[styles.markerContainer, selectedVenue?._id === venue._id && styles.markerContainerActive]}>
+                                <Trophy 
+                                    size={selectedVenue?._id === venue._id ? 24 : 20} 
+                                    color={selectedVenue?._id === venue._id ? "#000" : "#00FF00"} 
+                                    fill={selectedVenue?._id === venue._id ? "#00FF00" : "transparent"} 
+                                />
                             </View>
                         </View>
                         
@@ -195,9 +198,9 @@ export default function ExploreScreen() {
                 onPress={handleNavigationPress}
             >
                 {selectedVenue ? (
-                    <Navigation color="#000" size={24} fill="#00FF00" />
+                    <Navigation color="#000" size={28} fill="#00FF00" />
                 ) : (
-                    <LocateFixed color="#000" size={24} />
+                    <LocateFixed color="#000" size={28} />
                 )}
             </TouchableOpacity>
 
@@ -250,14 +253,58 @@ const styles = StyleSheet.create({
     headerTitle: { color: '#FFF', fontSize: 18, fontWeight: '900', letterSpacing: 1 },
     headerSubtitle: { color: '#00FF00', fontSize: 8, fontWeight: '900', letterSpacing: 2, marginTop: 2 },
 
-    locationBtn: { position: 'absolute', bottom: 120, right: 20, width: 55, height: 55, borderRadius: 20, backgroundColor: '#00FF00', justifyContent: 'center', alignItems: 'center', shadowColor: '#00FF00', shadowOpacity: 0.3, shadowRadius: 10, elevation: 5 },
+    locationBtn: { 
+        position: 'absolute', 
+        bottom: 125, 
+        right: 20, 
+        width: 60, 
+        height: 60, 
+        borderRadius: 30, 
+        backgroundColor: '#00FF00', 
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        shadowColor: '#00FF00', 
+        shadowOpacity: 0.5, 
+        shadowRadius: 15, 
+        elevation: 12,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.2)'
+    },
 
-    markerOuterContainer: { width: 60, height: 60, alignItems: 'center', justifyContent: 'center' }, // Large container to prevent clipping
-    markerContainer: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-    markerGlow: { position: 'absolute', width: 34, height: 34, borderRadius: 17, backgroundColor: 'rgba(0, 255, 0, 0.1)', borderWidth: 1, borderColor: 'rgba(0, 255, 0, 0.2)' },
-    markerGlowActive: { backgroundColor: 'rgba(0, 255, 0, 0.4)', width: 54, height: 54, borderRadius: 27 },
-    markerPin: { width: 30, height: 30, borderRadius: 15, backgroundColor: '#090E1A', justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: '#00FF00' },
-    markerPinActive: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#00FF00', shadowColor: '#00FF00', shadowOpacity: 0.5, shadowRadius: 10, elevation: 5 },
+    markerOuterContainer: { 
+        width: 50, 
+        height: 50, 
+        alignItems: 'center', 
+        justifyContent: 'center',
+    }, 
+    markerContainer: { 
+        width: 44, 
+        height: 44, 
+        alignItems: 'center', 
+        justifyContent: 'center',
+        backgroundColor: '#090E1A',
+        borderRadius: 22,
+        borderWidth: 2,
+        borderColor: '#00FF00',
+        shadowColor: '#00FF00',
+        shadowOpacity: 0.5,
+        shadowRadius: 5,
+        elevation: 5
+    },
+    markerContainerActive: { 
+        backgroundColor: '#FFF',
+        borderColor: '#00FF00',
+        borderWidth: 3,
+        width: 50,
+        height: 50,
+        borderRadius: 25,
+        shadowOpacity: 0.8,
+        shadowRadius: 10,
+        elevation: 10
+    },
+    markerGlow: { display: 'none' }, // Remove complex glows for clarity
+    markerPin: { backgroundColor: 'transparent', borderWidth: 0 },
+    markerPinActive: { backgroundColor: 'transparent', borderWidth: 0 },
 
     calloutContainer: { width: 160, backgroundColor: '#131C31', borderRadius: 18, padding: 12, borderWidth: 1, borderColor: 'rgba(0,255,0,0.3)', shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 10 },
     calloutTitle: { color: '#FFF', fontSize: 14, fontWeight: '900', marginBottom: 6 },
