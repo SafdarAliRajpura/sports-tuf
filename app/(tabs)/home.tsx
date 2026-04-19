@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { useEffect, useState } from 'react';
 import { Dimensions, Image, ImageBackground, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import Animated, { FadeIn, FadeOut, ZoomIn, FadeInRight } from 'react-native-reanimated';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useUserLocation } from '@/hooks/useUserLocation';
 import { useFocusEffect, useRouter } from 'expo-router';
@@ -72,7 +73,7 @@ export default function ArenaHomeScreen() {
           const userData = await AsyncStorage.getItem('userInfo');
           if (userData) {
             const user = JSON.parse(userData);
-            setFirstName(user.first_name || user.name || 'Athlete');
+            setUserName(user.first_name || user.name || 'Athlete');
             setAvatar(getAvatarUrl(user.avatar || user.user_profile));
             setCurrentUserId(user._id || user.id || null);
           }
@@ -88,7 +89,7 @@ export default function ArenaHomeScreen() {
             statsRes, 
             notifRes
           ] = await Promise.all([
-            apiClient.get('/api/users/profile').catch(() => ({ data: null })),
+            apiClient.get('/api/auth/me').catch(() => ({ data: null })),
             apiClient.get('/api/venues').catch(() => ({ data: null })),
             apiClient.get('/api/tournaments').catch(() => ({ data: null })),
             apiClient.get('/api/leaderboard').catch(() => ({ data: null })),
@@ -101,7 +102,7 @@ export default function ArenaHomeScreen() {
           // Update State Safely
           if (userRes?.data?.success) {
             const u = userRes.data.data;
-            setFirstName(u.first_name);
+            setUserName(u.first_name);
             setAvatar(getAvatarUrl(u.user_profile));
             setCurrentUserId(u._id);
             AsyncStorage.setItem('userInfo', JSON.stringify(u));
@@ -491,6 +492,21 @@ export default function ArenaHomeScreen() {
           </>
         )}
       </ScrollView>
+
+      {/* FLOATING MAP BUTTON - ONLY ON VENUES TAB */}
+      {activeTab === 'Venues' && (
+        <Animated.View entering={FadeInRight.delay(500)} style={styles.floatingMapBtn}>
+          <TouchableOpacity 
+            style={styles.mapBtnContent}
+            onPress={() => router.push('/explore')}
+          >
+            <View style={styles.mapBtnIcon}>
+              <Feather name="map" size={20} color="#000" />
+            </View>
+            <Text style={styles.mapBtnText}>SCOUTING MODE</Text>
+          </TouchableOpacity>
+        </Animated.View>
+      )}
 
       <NotificationModal visible={showNotifications} onClose={() => setShowNotifications(false)} />
       <SearchModal visible={showSearch} onClose={() => setShowSearch(false)} />
@@ -902,7 +918,7 @@ function TournamentCard({ tournament }: any) {
                     <Text style={styles.tournamentTitle}>{tournament.name || tournament.title}</Text>
                     <View style={styles.tournamentDetailRow}>
                         <Calendar color="#00FF00" size={14} />
-                        <Text style={styles.tournamentDetailText}>{tournament.date || new Date(tournament.startDate).toLocaleDateString()}</Text>
+                        <Text style={styles.tournamentDetailText}>{tournament.date}</Text>
                         <Users color="#00FF00" size={14} style={{ marginLeft: 15 }} />
                         <Text style={styles.tournamentDetailText}>{registered} / {totalSlots} Teams</Text>
                     </View>
@@ -922,7 +938,7 @@ function TournamentListItem({ tournament }: any) {
                 <Text style={styles.listSub}>{tournament.location || 'Stadium Arena'}</Text>
                 <View style={styles.listMeta}>
                     <Calendar color="#00FF00" size={12} />
-                    <Text style={styles.listMetaText}>{new Date(tournament.startDate).toLocaleDateString()}</Text>
+                    <Text style={styles.listMetaText}>{tournament.date}</Text>
                 </View>
             </View>
             <View style={styles.listAction}>
@@ -1372,5 +1388,10 @@ const styles = StyleSheet.create({
   modalFooter: { padding: 25, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.05)', backgroundColor: '#131C31' },
   joinEventBtn: { backgroundColor: '#00FF00', paddingVertical: 18, borderRadius: 18, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 12 },
   leaveEventBtn: { backgroundColor: 'rgba(0,209,255,0.1)', borderWidth: 1, borderColor: '#00D1FF' },
-  joinEventBtnText: { color: '#090E1A', fontSize: 14, fontWeight: '900', letterSpacing: 0.5 }
+  joinEventBtnText: { color: '#090E1A', fontSize: 14, fontWeight: '900', letterSpacing: 0.5 },
+  closeBtnText: { color: '#94A3B8', fontSize: 12, fontWeight: '900', letterSpacing: 1 },
+  floatingMapBtn: { position: 'absolute', bottom: 30, left: '20%', right: '20%', height: 65, borderRadius: 25, backgroundColor: '#00FF00', shadowColor: '#00FF00', shadowOpacity: 0.4, shadowRadius: 15, elevation: 10, zIndex: 100 },
+  mapBtnContent: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12 },
+  mapBtnIcon: { width: 40, height: 40, borderRadius: 15, backgroundColor: 'rgba(0,0,0,0.1)', justifyContent: 'center', alignItems: 'center' },
+  mapBtnText: { color: '#000', fontSize: 12, fontWeight: '900', letterSpacing: 1 }
 });

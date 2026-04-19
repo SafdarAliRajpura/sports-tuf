@@ -3,7 +3,8 @@ import apiClient from '../../src/api/apiClient';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { getAvatarUrl } from '../../src/utils/imageUtils';
 import { StatusBar } from 'expo-status-bar';
-import { ChevronRight, CreditCard, Edit3, HelpCircle, History, LogOut, Medal, Settings, Trophy } from 'lucide-react-native';
+import { ChevronRight, CreditCard, Edit3, HelpCircle, History, LogOut, Medal, Settings, Shield, Trophy } from 'lucide-react-native';
+import { Feather } from '@expo/vector-icons';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Image, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 // import { auth, db } from '../config/firebase'; 
@@ -162,19 +163,27 @@ export default function ProfileScreen() {
 
         <Text style={[styles.sectionHeader, { marginTop: 30 }]}>SETTINGS</Text>
 
-        <TouchableOpacity style={styles.menuItem}>
+        <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/profile/security')}>
           <View style={styles.menuIconBox}>
-            <Settings color="#FFFFFF" size={20} />
+            <Shield color="#FFFFFF" size={20} />
           </View>
-          <Text style={styles.menuText}>Preferences</Text>
+          <Text style={styles.menuText}>Security & Password</Text>
           <ChevronRight color="#475569" size={20} />
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.menuItem}>
+        <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/profile/help')}>
           <View style={styles.menuIconBox}>
             <HelpCircle color="#FFFFFF" size={20} />
           </View>
-          <Text style={styles.menuText}>Help & Support</Text>
+          <Text style={styles.menuText}>Help Center</Text>
+          <ChevronRight color="#475569" size={20} />
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/profile/contact')}>
+          <View style={styles.menuIconBox}>
+            <Feather name="message-circle" color="#FFFFFF" size={20} />
+          </View>
+          <Text style={styles.menuText}>Contact Us</Text>
           <ChevronRight color="#475569" size={20} />
         </TouchableOpacity>
 
