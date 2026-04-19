@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image, ActivityIndicator, Dimensions, Platform } from 'react-native';
 import MapView, { Marker, Callout, PROVIDER_GOOGLE } from 'react-native-maps';
 import { useUserLocation } from '@/hooks/useUserLocation';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { ArrowLeft, Navigation, MapPin, Star, Zap, Info } from 'lucide-react-native';
 import apiClient from '@/src/api/apiClient';
 import { StatusBar } from 'expo-status-bar';
@@ -26,6 +26,9 @@ const MAP_STYLE = [
 
 export default function ExploreScreen() {
     const router = useRouter();
+    const params = useLocalSearchParams();
+    const { focusId } = params;
+    
     const mapRef = useRef<MapView>(null);
     const { location, loading: locationLoading } = useUserLocation();
     const [venues, setVenues] = useState<any[]>([]);
@@ -40,7 +43,27 @@ export default function ExploreScreen() {
         try {
             const res = await apiClient.get('/api/venues');
             if (res.data) {
-                setVenues(res.data.success ? res.data.data : res.data);
+                const venueData = res.data.success ? res.data.data : res.data;
+                setVenues(venueData);
+
+                // If focusId is provided, find and select that venue
+                if (focusId && Array.isArray(venueData)) {
+                    const venueToFocus = venueData.find(v => v._id === focusId);
+                    if (venueToFocus) {
+                        setSelectedVenue(venueToFocus);
+                        // Small delay to ensure map is ready
+                        setTimeout(() => {
+                            if (mapRef.current) {
+                                mapRef.current.animateToRegion({
+                                    latitude: venueToFocus.coordinates?.lat || 23.0225,
+                                    longitude: venueToFocus.coordinates?.lng || 72.5714,
+                                    latitudeDelta: 0.01,
+                                    longitudeDelta: 0.01,
+                                }, 1500);
+                            }
+                        }, 500);
+                    }
+                }
             }
         } catch (error) {
             console.error("Explore Fetch Error:", error);

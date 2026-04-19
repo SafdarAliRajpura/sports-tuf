@@ -333,9 +333,17 @@ export default function VenueDetailsScreen() {
                     <TouchableOpacity style={styles.roundButton} onPress={() => router.back()}>
                         <ArrowLeft color="#FFFFFF" size={24} />
                     </TouchableOpacity>
-                    <TouchableOpacity style={styles.roundButton} onPress={onShare}>
-                        <Share2 color="#FFFFFF" size={20} />
-                    </TouchableOpacity>
+                    <View style={{ flexDirection: 'row', gap: 10 }}>
+                        <TouchableOpacity 
+                            style={[styles.roundButton, { borderColor: 'rgba(0,255,0,0.3)' }]} 
+                            onPress={() => router.push({ pathname: '/explore', params: { focusId: id } })}
+                        >
+                            <Feather name="map" color="#00FF00" size={20} />
+                        </TouchableOpacity>
+                        <TouchableOpacity style={styles.roundButton} onPress={onShare}>
+                            <Share2 color="#FFFFFF" size={20} />
+                        </TouchableOpacity>
+                    </View>
                 </View>
             </View>
 
@@ -351,8 +359,17 @@ export default function VenueDetailsScreen() {
                         </View>
                     </View>
                     <View style={styles.locationRow}>
-                        <MapPin color="#94A3B8" size={16} />
-                        <Text style={styles.locationText}>{venueData.location}</Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
+                            <MapPin color="#94A3B8" size={16} />
+                            <Text style={styles.locationText} numberOfLines={1}>{venueData.location}</Text>
+                        </View>
+                        <TouchableOpacity 
+                            style={styles.inlineMapBtn}
+                            onPress={() => router.push({ pathname: '/explore', params: { focusId: id } })}
+                        >
+                            <Text style={styles.inlineMapBtnText}>VIEW ON MAP</Text>
+                            <Navigation2 color="#00FF00" size={12} />
+                        </TouchableOpacity>
                     </View>
                 </View>
 
@@ -1019,4 +1036,22 @@ const styles = StyleSheet.create({
         fontSize: 16,
         letterSpacing: 1,
     },
+
+    inlineMapBtn: { 
+        flexDirection: 'row', 
+        alignItems: 'center', 
+        gap: 6, 
+        backgroundColor: 'rgba(0,255,0,0.05)', 
+        paddingHorizontal: 12, 
+        paddingVertical: 6, 
+        borderRadius: 12, 
+        borderWidth: 1, 
+        borderColor: 'rgba(0,255,0,0.2)' 
+    },
+    inlineMapBtnText: { 
+        color: '#00FF00', 
+        fontSize: 10, 
+        fontWeight: '900', 
+        letterSpacing: 1 
+    }
 });
