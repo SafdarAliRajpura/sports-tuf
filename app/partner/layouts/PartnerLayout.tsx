@@ -1,19 +1,38 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, Image, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, Image, Platform, ScrollView } from 'react-native';
 import { Slot, useRouter, usePathname } from 'expo-router';
-import { Feather } from '@expo/vector-icons';
+import { 
+    LayoutDashboard, 
+    MapPin, 
+    Trophy, 
+    Calendar, 
+    TrendingUp, 
+    Settings, 
+    Plus, 
+    LogOut, 
+    Search, 
+    Bell,
+    ChevronRight,
+    Maximize,
+    Briefcase
+} from 'lucide-react-native';
 
-const SidebarItem = ({ iconName, label, path, active, onClick }: { iconName: any, label: string, path: string, active: boolean, onClick: () => void }) => {
+const SidebarItem = ({ Icon, label, path, active, onClick }: { Icon: any, label: string, path: string, active: boolean, onClick: () => void }) => {
     return (
         <TouchableOpacity
             style={[styles.sidebarItem, active && styles.sidebarItemActive]}
             onPress={onClick}
             activeOpacity={0.7}
         >
-            <Feather name={iconName} color={active ? "#FFFFFF" : "#94A3B8"} size={20} />
+            <View style={[styles.iconWrapper, active && styles.iconWrapperActive]}>
+                <Icon size={20} color={active ? "#A855F7" : "#94A3B8"} strokeWidth={active ? 2.5 : 2} />
+            </View>
             <Text style={[styles.sidebarLabel, active && styles.sidebarLabelActive]}>
                 {label}
             </Text>
+            {active && (
+                <View style={styles.activePill} />
+            )}
         </TouchableOpacity>
     );
 };
@@ -23,15 +42,15 @@ export default function PartnerLayout({ children }: { children?: React.ReactNode
     const pathname = usePathname();
 
     const sidebarItems = [
-        { iconName: "grid", label: 'Dashboard', path: '/partner/pages/Dashboard' },
-        { iconName: "map-pin", label: 'My Turfs', path: '/partner/pages/MyTurfs' },
-        { iconName: "award", label: 'Tournaments', path: '/partner/pages/Tournaments' },
-        { iconName: "calendar", label: 'Bookings', path: '/partner/pages/Bookings' },
-        { iconName: "bar-chart-2", label: 'Analytics', path: '/partner/pages/Analytics' },
-        { iconName: "settings", label: 'Settings', path: '/partner/pages/Settings' },
+        { Icon: LayoutDashboard, label: 'Dashboard', path: '/partner/pages/Dashboard' },
+        { Icon: MapPin, label: 'My Turfs', path: '/partner/pages/MyTurfs' },
+        { Icon: Trophy, label: 'Tournaments', path: '/partner/pages/Tournaments' },
+        { Icon: Calendar, label: 'Bookings', path: '/partner/pages/Bookings' },
+        { Icon: Maximize, label: 'Entry Scanner', path: '/partner/pages/Scanner' },
+        { Icon: TrendingUp, label: 'Analytics', path: '/partner/pages/Analytics' },
+        { Icon: Settings, label: 'Settings', path: '/partner/pages/Settings' },
     ];
 
-    // Helper to determine active state
     const isActive = (path: string) => {
         if (pathname === '/partner' || pathname === '/partner/' || pathname === '/partner/layouts/PartnerLayout') {
             return path === '/partner/pages/Dashboard';
@@ -42,61 +61,67 @@ export default function PartnerLayout({ children }: { children?: React.ReactNode
     return (
         <View style={styles.container}>
             
-            {/* --- SIDEBAR --- */}
-            <View style={[styles.sidebar, Platform.OS === 'web' && { width: 260 }]}>
-                <View style={styles.sidebarTop}>
-                    {/* Logo Row */}
+            {/* --- NEON PURPLE SIDEBAR --- */}
+            <View style={[styles.sidebar, Platform.OS === 'web' && { width: 280 }]}>
+                <View style={styles.sidebarContent}>
+                    {/* Logo Section (Web-Parity) */}
                     <TouchableOpacity 
-                        style={styles.logoRow} 
+                        style={styles.logoSection} 
                         onPress={() => router.push('/(tabs)/home')}
                         activeOpacity={0.8}
                     >
-                        <View style={styles.logoSquare}>
-                            <Feather name="layers" color="#FFFFFF" size={16} />
+                        <View style={styles.logoBox}>
+                            <Briefcase color="#FFFFFF" size={18} />
                         </View>
-                        <Text style={styles.brandText} numberOfLines={1}>
-                            ARENA <Text style={styles.brandAccent}>PRO</Text>
-                        </Text>
-                        <View style={styles.partnerBadge}>
-                            <Text style={styles.partnerBadgeText}>PARTNER</Text>
+                        <View>
+                            <Text style={styles.brandMain}>ARENA<Text style={styles.brandSub}>PRO</Text></Text>
+                            <View style={styles.partnerTag}>
+                                <Text style={styles.partnerTagText}>PARTNER</Text>
+                            </View>
                         </View>
                     </TouchableOpacity>
 
-                    {/* Add New Turf Button */}
-                    <TouchableOpacity style={styles.addTurfButton}>
-                        <Feather name="plus" size={16} color="#FFFFFF" />
-                        <Text style={styles.addTurfButtonText}>Add New Turf</Text>
-                    </TouchableOpacity>
-
-                    {/* Navigation Items */}
-                    <View style={styles.navMenu}>
-                        {sidebarItems.map((item) => (
-                            <SidebarItem
-                                key={item.path}
-                                iconName={item.iconName}
-                                label={item.label}
-                                path={item.path}
-                                active={isActive(item.path)}
-                                onClick={() => router.push(item.path as any)}
-                            />
-                        ))}
+                    {/* Action Section */}
+                    <View style={styles.actionSection}>
+                        <TouchableOpacity style={styles.addButton} activeOpacity={0.8}>
+                            <Plus color="#FFFFFF" size={18} strokeWidth={3} />
+                            <Text style={styles.addButtonText}>Add New Turf</Text>
+                        </TouchableOpacity>
                     </View>
+
+                    {/* Navigation Menu */}
+                    <ScrollView showsVerticalScrollIndicator={false} style={styles.menuScrollView}>
+                        <Text style={styles.menuSectionLabel}>MENU</Text>
+                        <View style={styles.navMenu}>
+                            {sidebarItems.map((item) => (
+                                <SidebarItem
+                                    key={item.path}
+                                    Icon={item.Icon}
+                                    label={item.label}
+                                    path={item.path}
+                                    active={isActive(item.path)}
+                                    onClick={() => router.push(item.path as any)}
+                                />
+                            ))}
+                        </View>
+                    </ScrollView>
                 </View>
 
+                {/* Bottom Section */}
                 <View style={styles.sidebarBottom}>
-                    <TouchableOpacity style={styles.exitButton} onPress={() => router.push('/home')}>
-                        <Feather name="log-out" color="#F87171" size={18} />
-                        <Text style={styles.exitText}>Log Out</Text>
+                    <TouchableOpacity style={styles.logoutButton} onPress={() => router.push('/home')}>
+                        <LogOut color="#F87171" size={18} />
+                        <Text style={styles.logoutText}>Log Out</Text>
                     </TouchableOpacity>
 
-                    <View style={styles.userBox}>
+                    <View style={styles.userCard}>
                         <Image 
                             source={{ uri: 'https://api.dicebear.com/7.x/avataaars/png?seed=JohnDoe' }} 
                             style={styles.userAvatar} 
                         />
-                        <View style={styles.userDetails}>
-                            <Text style={styles.userName}>John Doe</Text>
-                            <Text style={styles.userRole}>BUSINESS OWNER</Text>
+                        <View style={styles.userMeta}>
+                            <Text style={styles.userName} numberOfLines={1}>John Doe</Text>
+                            <Text style={styles.userRole}>Business Owner</Text>
                         </View>
                     </View>
                 </View>
@@ -104,36 +129,28 @@ export default function PartnerLayout({ children }: { children?: React.ReactNode
 
             {/* --- MAIN CONTENT AREA --- */}
             <View style={styles.mainContent}>
-                
-                {/* Topbar Header */}
                 <View style={styles.topbar}>
-                    <View style={styles.searchBox}>
-                        <Feather name="search" color="#64748B" size={16} style={{ marginRight: 10 }} />
+                    <View style={styles.searchContainer}>
+                        <Search color="#64748B" size={18} />
                         <TextInput 
-                            style={[
-                                styles.searchInput,
-                                Platform.OS === 'web' && ({ outlineStyle: 'none' } as any)
-                            ]}
-                            placeholder="Search your venues..."
+                            style={[styles.searchInput, Platform.OS === 'web' && ({ outlineStyle: 'none' } as any)]}
+                            placeholder="Search your venues or tournaments..."
                             placeholderTextColor="#64748B"
                         />
                     </View>
                     
                     <View style={styles.headerRight}>
-                        <TouchableOpacity style={styles.bellButton}>
-                            <Feather name="bell" color="#94A3B8" size={18} />
-                            <View style={styles.notificationDot} />
+                        <TouchableOpacity style={styles.headerIcon}>
+                            <Bell color="#94A3B8" size={20} />
+                            <View style={styles.notifDot} />
                         </TouchableOpacity>
                     </View>
                 </View>
 
-                {/* Dynamic Page Component injection */}
                 <View style={styles.contentArea}>
                      {children || <Slot />}
                 </View>
-
             </View>
-
         </View>
     );
 }
@@ -142,207 +159,244 @@ const styles: any = StyleSheet.create({
     container: {
         flex: 1,
         flexDirection: 'row',
-        backgroundColor: '#0F1624', // Match the main background
+        backgroundColor: '#020617',
     },
     sidebar: {
-        backgroundColor: '#121927', // slightly lighter for sidebar
+        backgroundColor: '#0F172A',
         borderRightWidth: 1,
-        borderRightColor: '#1E293B',
-        display: 'flex',
-        flexDirection: 'column',
-        justifyContent: 'space-between',
-        width: 260, // Default width for mobile/web
+        borderRightColor: 'rgba(255,255,255,0.05)',
+        width: 280,
     },
-    sidebarTop: {
-        padding: 24,
+    sidebarContent: {
+        flex: 1,
+        paddingHorizontal: 20,
+        paddingTop: 40,
     },
-    logoRow: {
+    logoSection: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginBottom: 32,
+        marginBottom: 40,
+        gap: 12,
     },
-    logoSquare: {
-        width: 24,
-        height: 24,
-        borderRadius: 4,
-        alignItems: 'center',
+    logoBox: {
+        width: 38,
+        height: 38,
+        borderRadius: 10,
+        backgroundColor: '#A855F7',
         justifyContent: 'center',
-        marginRight: 8,
+        alignItems: 'center',
+        shadowColor: '#A855F7',
+        shadowOpacity: 0.4,
+        shadowRadius: 10,
+        elevation: 5,
     },
-    brandText: {
+    brandMain: {
         fontSize: 18,
         fontWeight: '900',
         color: '#FFFFFF',
-        letterSpacing: -0.5,
+        letterSpacing: -1,
     },
-    brandAccent: {
-        color: '#00D1FF', // Cyan accent
+    brandSub: {
+        color: '#A855F7',
     },
-    partnerBadge: {
+    partnerTag: {
+        alignSelf: 'flex-start',
         borderWidth: 1,
         borderColor: '#334155',
         borderRadius: 4,
-        paddingHorizontal: 6,
-        paddingVertical: 2,
-        marginLeft: 6,
-        backgroundColor: '#1E293B',
+        paddingHorizontal: 4,
+        paddingVertical: 1,
+        marginTop: 2,
     },
-    partnerBadgeText: {
-        fontSize: 9,
-        fontWeight: '700',
-        color: '#94A3B8',
+    partnerTagText: {
+        fontSize: 8,
+        fontWeight: '800',
+        color: '#64748B',
         letterSpacing: 1,
     },
-    addTurfButton: {
+    actionSection: {
+        marginBottom: 35,
+    },
+    addButton: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: 'transparent',
-        borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.1)',
-        paddingVertical: 12,
-        borderRadius: 8,
-        marginBottom: 32,
-        gap: 8,
+        backgroundColor: '#A855F7',
+        paddingVertical: 14,
+        borderRadius: 14,
+        gap: 10,
+        shadowColor: '#A855F7',
+        shadowOpacity: 0.2,
+        shadowRadius: 15,
+        elevation: 4,
     },
-    addTurfButtonText: {
+    addButtonText: {
         color: '#FFFFFF',
         fontSize: 14,
-        fontWeight: '600',
+        fontWeight: '800',
+    },
+    menuScrollView: {
+        flex: 1,
+    },
+    menuSectionLabel: {
+        color: '#475569',
+        fontSize: 10,
+        fontWeight: '900',
+        letterSpacing: 2,
+        marginBottom: 15,
+        marginLeft: 10,
     },
     navMenu: {
-        gap: 4,
+        gap: 6,
     },
     sidebarItem: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingHorizontal: 16,
+        paddingHorizontal: 12,
         paddingVertical: 12,
-        borderRadius: 8,
+        borderRadius: 12,
         backgroundColor: 'transparent',
-        marginBottom: 4,
     },
     sidebarItemActive: {
-        backgroundColor: 'rgba(255,255,255,0.05)', // light translucent background
+        backgroundColor: 'rgba(168, 85, 247, 0.08)',
         borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.1)',
+        borderColor: 'rgba(168, 85, 247, 0.15)',
+    },
+    iconWrapper: {
+        width: 34,
+        height: 34,
+        borderRadius: 8,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    iconWrapperActive: {
+        // Optional
     },
     sidebarLabel: {
         color: '#94A3B8',
         fontSize: 14,
-        fontWeight: '500',
-        marginLeft: 14,
-        letterSpacing: 0.3,
+        fontWeight: '700',
+        marginLeft: 10,
     },
     sidebarLabelActive: {
-        color: '#FFFFFF', 
-        fontWeight: '700',
+        color: '#A855F7',
+    },
+    activePill: {
+        marginLeft: 'auto',
+        width: 6,
+        height: 6,
+        borderRadius: 3,
+        backgroundColor: '#A855F7',
+        shadowColor: '#A855F7',
+        shadowOpacity: 1,
+        shadowRadius: 5,
     },
     sidebarBottom: {
-        padding: 24,
+        padding: 20,
+        gap: 15,
     },
-    exitButton: {
+    logoutButton: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingHorizontal: 0,
-        paddingVertical: 14,
-        marginBottom: 20,
+        paddingHorizontal: 12,
+        paddingVertical: 10,
+        gap: 10,
     },
-    exitText: {
+    logoutText: {
         color: '#F87171',
-        fontWeight: '600',
-        fontSize: 14,
-        marginLeft: 14,
+        fontWeight: '800',
+        fontSize: 13,
     },
-    userBox: {
+    userCard: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: 'rgba(0,0,0,0.2)', // Darker background for user card
+        backgroundColor: '#020617',
         padding: 12,
-        borderRadius: 8,
+        borderRadius: 16,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.05)',
     },
     userAvatar: {
         width: 36,
         height: 36,
-        borderRadius: 6,
-        marginRight: 12,
+        borderRadius: 10,
         backgroundColor: '#1E293B',
+    },
+    userMeta: {
+        marginLeft: 12,
     },
     userName: {
         color: '#FFFFFF',
-        fontWeight: '700',
+        fontWeight: '800',
         fontSize: 13,
     },
     userRole: {
         color: '#64748B',
         fontSize: 9,
+        fontWeight: '700',
         textTransform: 'uppercase',
-        letterSpacing: 1,
         marginTop: 2,
-        fontWeight: '600',
-    },
-    userDetails: {
-        justifyContent: 'center',
     },
     mainContent: {
         flex: 1,
-        display: 'flex',
-        flexDirection: 'column',
-        backgroundColor: '#0A0F1A',
+        backgroundColor: '#020617',
     },
     topbar: {
-        height: 72,
+        height: 80,
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        paddingHorizontal: 32,
+        paddingHorizontal: 30,
         borderBottomWidth: 1,
-        borderBottomColor: '#1E293B',
+        borderBottomColor: 'rgba(255,255,255,0.05)',
+        backgroundColor: 'rgba(15, 23, 42, 0.5)',
     },
-    searchBox: {
+    searchContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#121927', 
-        borderWidth: 1,
-        borderColor: '#1E293B',
-        borderRadius: 8,
-        paddingHorizontal: 16,
+        backgroundColor: '#0F172A',
+        borderRadius: 12,
+        paddingHorizontal: 15,
         paddingVertical: 10,
-        width: Platform.OS === 'web' ? 360 : '70%', 
+        width: Platform.OS === 'web' ? 380 : '70%',
+        gap: 10,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.05)',
     },
     searchInput: {
         flex: 1,
         color: '#FFFFFF',
-        fontSize: 14,
-        fontWeight: '500',
-        padding: 0,
+        fontSize: 13,
+        fontWeight: '600',
     },
     headerRight: {
         flexDirection: 'row',
         alignItems: 'center',
     },
-    bellButton: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        backgroundColor: '#121927',
-        borderWidth: 1,
-        borderColor: '#1E293B',
-        alignItems: 'center',
+    headerIcon: {
+        width: 44,
+        height: 44,
+        borderRadius: 12,
+        backgroundColor: '#0F172A',
         justifyContent: 'center',
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.05)',
     },
-    notificationDot: {
+    notifDot: {
         position: 'absolute',
-        top: 8,
-        right: 10,
-        width: 6,
-        height: 6,
-        borderRadius: 3,
-        backgroundColor: '#10B981', // green notification dot
+        top: 12,
+        right: 14,
+        width: 8,
+        height: 8,
+        borderRadius: 4,
+        backgroundColor: '#A855F7',
+        borderWidth: 2,
+        borderColor: '#0F172A',
     },
     contentArea: {
         flex: 1,
-        padding: Platform.OS === 'web' ? 32 : 16,
-        overflow: 'hidden', // Let children manage their own scroll
     }
 });
+
+

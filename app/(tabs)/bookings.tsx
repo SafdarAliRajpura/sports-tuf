@@ -1,585 +1,371 @@
+import React, { useEffect, useState } from 'react';
+import { 
+  View, 
+  Text, 
+  StyleSheet, 
+  ScrollView, 
+  TouchableOpacity, 
+  ActivityIndicator, 
+  Image, 
+  RefreshControl, 
+  Modal,
+  Platform
+} from 'react-native';
+import { useRouter, useFocusEffect } from 'expo-router';
+import { 
+  Calendar, 
+  MapPin, 
+  Clock, 
+  ChevronRight, 
+  Trophy, 
+  Shield, 
+  Users, 
+  CreditCard, 
+  CheckCircle, 
+  XCircle, 
+  AlertCircle 
+} from 'lucide-react-native';
+import apiClient from '../../src/api/apiClient';
 import { StatusBar } from 'expo-status-bar';
-import { Calendar as CalendarIcon, Clock, MapPin, QrCode, Ticket, X, AlertTriangle } from 'lucide-react-native';
-import React, { useState } from 'react';
-import Animated, { FadeIn, FadeOut, ZoomIn, ZoomOut, SlideInUp, SlideOutDown, FadeInLeft, FadeInRight, FadeInUp, FadeInDown } from "react-native-reanimated";
-import { FlatList, Image, Modal, Platform, Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { BlurView } from 'expo-blur';
+import Animated, { FadeInUp, Layout, ZoomIn } from 'react-native-reanimated';
 
-import { useBookingStore } from '../../store/bookingStore';
+type TabType = 'TURF' | 'TOURNAMENT';
 
 export default function BookingsScreen() {
-  const [activeTab, setActiveTab] = useState('Upcoming');
-  const [showTicket, setShowTicket] = useState(false);
-  const [selectedBooking, setSelectedBooking] = useState<any>(null);
-  const [showCancelModal, setShowCancelModal] = useState(false);
-  const [bookingToCancel, setBookingToCancel] = useState<any>(null);
+    const router = useRouter();
+    const [activeTab, setActiveTab] = useState<TabType>('TURF');
+    const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
+    
+    const [bookings, setBookings] = useState<any[]>([]);
+    const [registrations, setRegistrations] = useState<any[]>([]);
+    const [selectedBooking, setSelectedBooking] = useState<any>(null);
+    const [modalVisible, setModalVisible] = useState(false);
 
-  const { upcomingBookings, pastBookings, cancelBooking } = useBookingStore();
-  const data = activeTab === 'Upcoming' ? upcomingBookings : pastBookings;
+    const fetchData = async () => {
+        try {
+            // Fetch both in parallel
+            const [bookingRes, regRes] = await Promise.allSettled([
+                apiClient.get('/api/bookings'),
+                apiClient.get('/api/tournaments/my-registrations')
+            ]);
 
-  const handleOpenTicket = (booking: any) => {
-    setSelectedBooking(booking);
-    setShowTicket(true);
-  };
-
-  const handleCancelRequest = (booking: any) => {
-    setBookingToCancel(booking);
-    setShowCancelModal(true);
-  };
-
-  const confirmCancellation = () => {
-    if (bookingToCancel) {
-      cancelBooking(bookingToCancel.id);
-      setShowCancelModal(false);
-      setBookingToCancel(null);
-    }
-  };
-
-  const renderBooking = ({ item, index }: any) => (
-    <Animated.View entering={FadeInLeft.duration(300)} exiting={FadeOut.duration(200)} 
-      
-      
-      
-      style={styles.card}
-    >
-      <View style={styles.cardHeader}>
-        <Image source={{ uri: item.image }} style={styles.thumb} />
-        <View style={styles.headerInfo}>
-          <Text style={styles.sportText}>
-            {item.sport.toUpperCase()}
-          </Text>
-          <Text style={styles.arenaName}>
-            {item.arena}
-          </Text>
-        </View>
-        <View style={[
-          styles.statusBadge,
-          item.status === 'Confirmed' ? styles.confirmedBg : 
-          item.status === 'Cancelled' ? styles.cancelledBg : styles.completedBg
-        ]}>
-          <Text style={[
-            styles.statusText,
-            item.status === 'Cancelled' && styles.cancelledText
-          ]}>
-            {item.status}
-          </Text>
-        </View>
-      </View>
-
-      <View style={styles.divider} />
-
-      <View style={styles.detailsContainer}>
-        <View style={styles.detailRow}>
-          <CalendarIcon color="#94A3B8" size={16} />
-          <Text style={styles.detailText}>{item.date}</Text>
-        </View>
-        <View style={styles.detailRow}>
-          <Clock color="#94A3B8" size={16} />
-          <Text style={styles.detailText}>{item.time}</Text>
-        </View>
-        <View style={styles.detailRow}>
-          <MapPin color="#94A3B8" size={16} />
-          <Text style={styles.detailText}>{item.location}</Text>
-        </View>
-      </View>
-
-      <View style={styles.actionRow}>
-        <TouchableOpacity
-          style={styles.viewTicketBtn}
-          onPress={() => handleOpenTicket(item)}
-        >
-          <Ticket color="#000000" size={18} />
-          <Text style={styles.viewTicketText}>VIEW TICKET</Text>
-        </TouchableOpacity>
-
-        {activeTab === 'Upcoming' && (
-          <TouchableOpacity 
-            style={styles.cancelBtn}
-            onPress={() => handleCancelRequest(item)}
-          >
-           <X color="#FF3B30" size={20} />
-          </TouchableOpacity>
-        )}
-      </View>
-    </Animated.View>
-  );
-
-  return (
-    <View style={styles.container}>
-      <StatusBar style="light" />
-
-      <View style={styles.header}>
-        <Text style={styles.title}>My Bookings</Text>
-      </View>
-
-      <View style={styles.tabContainer}>
-        {['Upcoming', 'History'].map((tab) => (
-          <TouchableOpacity
-            key={tab}
-            onPress={() => setActiveTab(tab)}
-            style={[
-              styles.tab,
-              activeTab === tab && styles.activeTab
-            ]}
-          >
-            <Text style={[
-              styles.tabText,
-              activeTab === tab && styles.activeTabText
-            ]}>
-              {tab}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      <FlatList
-        data={data}
-        renderItem={renderBooking}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.list}
-        ListEmptyComponent={
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyText}>
-              No {activeTab.toLowerCase()} bookings found.
-            </Text>
-          </View>
+            if (bookingRes.status === 'fulfilled' && bookingRes.value.data.success) {
+                setBookings(bookingRes.value.data.data);
+            }
+            if (regRes.status === 'fulfilled' && regRes.value.data.success) {
+                setRegistrations(regRes.value.data.data);
+            }
+        } catch (error) {
+            console.error('Data fetch error:', error);
+        } finally {
+            setLoading(false);
+            setRefreshing(false);
         }
-      />
+    };
 
-      {/* TICKET PASS MODAL */}
-      <Modal
-        visible={showTicket}
-        transparent
-        animationType="fade"
-      >
-        <Pressable
-          style={styles.modalOverlay}
-          onPress={() => setShowTicket(false)}
-        >
-          <Animated.View entering={ZoomIn.duration(300)} exiting={ZoomOut.duration(200)} 
-            
-            
-            style={styles.ticketContainer}
-          >
-            {/* Top Ticket Section */}
-            <View style={styles.ticketTop}>
-              <View style={styles.ticketHeader}>
-                <Text style={styles.ticketTag}>ARENAPRO PASS</Text>
-                <TouchableOpacity onPress={() => setShowTicket(false)}>
-                  <X color="#94A3B8" size={24} />
-                </TouchableOpacity>
-              </View>
+    useFocusEffect(
+      React.useCallback(() => {
+        fetchData();
+      }, [])
+    );
 
-              <Text style={styles.ticketArena}>{selectedBooking?.arena}</Text>
+    const onRefresh = () => {
+        setRefreshing(true);
+        fetchData();
+    };
 
-              <View style={styles.ticketRow}>
-                <View>
-                  <Text style={styles.label}>DATE</Text>
-                  <Text style={styles.value}>{selectedBooking?.date}</Text>
+    const getStatusStyles = (status: string) => {
+        const s = status?.toLowerCase();
+        if (s === 'confirmed' || s === 'completed' || s === 'active') return { color: '#00FF00', bg: 'rgba(0, 255, 0, 0.1)', icon: CheckCircle };
+        if (s === 'pending') return { color: '#F59E0B', bg: 'rgba(245, 158, 11, 0.1)', icon: AlertCircle };
+        return { color: '#EF4444', bg: 'rgba(239, 68, 68, 0.1)', icon: XCircle };
+    };
+
+    const renderTurfCard = (item: any, index: number) => {
+        const { color, bg, icon: Icon } = getStatusStyles(item.status);
+        return (
+            <Animated.View 
+                key={item._id} 
+                entering={FadeInUp.delay(index * 100)} 
+                layout={Layout.springify()}
+                style={styles.card}
+            >
+                <View style={styles.cardHeader}>
+                    <View style={styles.typeBadge}>
+                        <MapPin color="#00FF00" size={12} />
+                        <Text style={styles.typeText}>TURF BOOKING</Text>
+                    </View>
+                    <View style={[styles.statusBadge, { backgroundColor: bg }]}>
+                        <Icon color={color} size={12} />
+                        <Text style={[styles.statusText, { color }]}>{item.status?.toUpperCase()}</Text>
+                    </View>
                 </View>
-                <View style={styles.alignRight}>
-                  <Text style={styles.label}>TIME</Text>
-                  <Text style={styles.value}>{selectedBooking?.time?.split(' - ')[0]}</Text>
-                </View>
-              </View>
-            </View>
 
-            {/* Perforated Divider */}
-            <View style={styles.dashedContainer}>
-              <View style={styles.cutoutLeft} />
-              <View style={styles.dashedLine} />
-              <View style={styles.cutoutRight} />
-            </View>
-
-            {/* Bottom Ticket Section */}
-            <View style={styles.ticketBottom}>
-              <Text style={styles.labelCenter}>SCAN AT THE ENTRANCE</Text>
-              <View style={styles.qrContainer}>
-                <QrCode color="#00FF00" size={130} strokeWidth={1.5} />
-              </View>
-              <Text style={styles.bookingId}>
-                ID: AP-{selectedBooking?.id}00X9
-              </Text>
-            </View>
-          </Animated.View>
-        </Pressable>
-      </Modal>
-
-      {/* CANCEL CONFIRMATION MODAL */}
-      <Modal
-        visible={showCancelModal}
-        transparent
-        animationType="fade"
-      >
-        <View style={styles.cancelOverlay}>
-            <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFillObject} />
-            <Animated.View entering={ZoomIn.duration(300)} exiting={ZoomOut.duration(200)} style={styles.cancelModalCard}>
+                <Text style={styles.title}>{item.turfName}</Text>
                 
-                <View style={styles.warningIconCircle}>
-                    <AlertTriangle color="#FF3B30" size={32} />
+                <View style={styles.metaRow}>
+                    <View style={styles.metaItem}>
+                        <Calendar color="#94A3B8" size={14} />
+                        <Text style={styles.metaText}>{item.date}</Text>
+                    </View>
+                    <View style={styles.metaItem}>
+                        <Clock color="#94A3B8" size={14} />
+                        <Text style={styles.metaText}>{item.timeSlot?.split(' (')[0]}</Text>
+                    </View>
                 </View>
-                
-                <Text style={styles.cancelModalTitle}>Cancel Booking?</Text>
-                <Text style={styles.cancelModalDesc}>
-                    Are you sure you want to cancel your booking at <Text style={styles.boldText}>{bookingToCancel?.arena}</Text>? This action cannot be undone.
-                </Text>
 
-                <View style={styles.cancelModalActions}>
+                <View style={styles.cardFooter}>
+                    <View style={styles.priceBox}>
+                        <CreditCard color="#64748B" size={14} />
+                        <Text style={styles.priceText}>₹{item.price}</Text>
+                    </View>
                     <TouchableOpacity 
-                        style={styles.keepBtn}
-                        onPress={() => { setShowCancelModal(false); setBookingToCancel(null); }}
+                        style={styles.detailsBtn} 
+                        onPress={() => {
+                            setSelectedBooking(item);
+                            setModalVisible(true);
+                        }}
                     >
-                        <Text style={styles.keepBtnText}>Keep It</Text>
-                    </TouchableOpacity>
-                    
-                    <TouchableOpacity 
-                        style={styles.confirmCancelBtn}
-                        onPress={confirmCancellation}
-                    >
-                        <Text style={styles.confirmCancelBtnText}>Yes, Cancel</Text>
+                        <Text style={styles.detailsBtnText}>VIEW TICKET</Text>
+                        <ChevronRight color="#00FF00" size={16} />
                     </TouchableOpacity>
                 </View>
-
             </Animated.View>
+        );
+    };
+
+    const renderTournamentCard = (item: any, index: number) => {
+        const { color, bg, icon: Icon } = getStatusStyles('confirmed');
+        const tourId = item.tournamentId?._id || item.tournamentId;
+        return (
+            <Animated.View 
+                key={item._id} 
+                entering={FadeInUp.delay(index * 100)} 
+                layout={Layout.springify()}
+                style={styles.card}
+            >
+                <View style={styles.cardHeader}>
+                    <View style={[styles.typeBadge, { borderColor: '#FFD700' }]}>
+                        <Trophy color="#FFD700" size={12} />
+                        <Text style={[styles.typeText, { color: '#FFD700' }]}>TOURNAMENT</Text>
+                    </View>
+                    <View style={[styles.statusBadge, { backgroundColor: bg }]}>
+                        <Icon color={color} size={12} />
+                        <Text style={[styles.statusText, { color }]}>JOINED</Text>
+                    </View>
+                </View>
+
+                <Text style={styles.title}>{item.tournamentName || item.tournamentId?.name || 'Championship'}</Text>
+                
+                <View style={styles.teamBox}>
+                    <Shield color="#00FF00" size={16} />
+                    <Text style={styles.teamName}>{item.teamName}</Text>
+                </View>
+
+                <View style={styles.playersRow}>
+                    <Users color="#94A3B8" size={14} />
+                    <Text style={styles.playersText}>{item.players?.length || 0} Players Registered</Text>
+                </View>
+
+                <View style={styles.cardFooter}>
+                    <View style={styles.priceBox}>
+                        <CreditCard color="#64748B" size={14} />
+                        <Text style={styles.priceText}>₹{item.tournamentId?.entryFee || 'PAID'}</Text>
+                    </View>
+                </View>
+            </Animated.View>
+        );
+    };
+
+    return (
+        <View style={styles.container}>
+            <StatusBar style="light" />
+            
+            {/* HEADER */}
+            <View style={styles.header}>
+                <Text style={styles.headerTitle}>My Activities</Text>
+            </View>
+
+            {/* TAB SELECTOR */}
+            <View style={styles.tabBar}>
+                <TouchableOpacity 
+                    style={[styles.tab, activeTab === 'TURF' && styles.activeTab]} 
+                    onPress={() => setActiveTab('TURF')}
+                >
+                    <Text style={[styles.tabText, activeTab === 'TURF' && styles.activeTabText]}>TURF MATCHES</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                    style={[styles.tab, activeTab === 'TOURNAMENT' && styles.activeTab]} 
+                    onPress={() => setActiveTab('TOURNAMENT')}
+                >
+                    <Text style={[styles.tabText, activeTab === 'TOURNAMENT' && styles.activeTabText]}>TOURNAMENTS</Text>
+                </TouchableOpacity>
+            </View>
+
+            <ScrollView 
+                contentContainerStyle={styles.scrollContent}
+                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#00FF00" />}
+                showsVerticalScrollIndicator={false}
+            >
+                {loading ? (
+                    <View style={styles.center}>
+                        <ActivityIndicator size="large" color="#00FF00" />
+                        <Text style={styles.hint}>Fetching your arena history...</Text>
+                    </View>
+                ) : (
+                    activeTab === 'TURF' ? (
+                        bookings.length > 0 ? bookings.map(renderTurfCard) : (
+                            <View style={styles.empty}>
+                                <MapPin color="#1E293B" size={80} />
+                                <Text style={styles.emptyTitle}>No Turf Matches</Text>
+                                <Text style={styles.emptyDesc}>You haven't booked any slots yet. Ready to take the field?</Text>
+                                <TouchableOpacity style={styles.actionBtn} onPress={() => router.push('/(tabs)/home')}>
+                                    <Text style={styles.actionBtnText}>BOOK A SLOT</Text>
+                                </TouchableOpacity>
+                            </View>
+                        )
+                    ) : (
+                        registrations.length > 0 ? registrations.map(renderTournamentCard) : (
+                            <View style={styles.empty}>
+                                <Trophy color="#1E293B" size={80} />
+                                <Text style={styles.emptyTitle}>No Tournaments</Text>
+                                <Text style={styles.emptyDesc}>Join the competitive league and fight for glory!</Text>
+                                <TouchableOpacity style={styles.actionBtn} onPress={() => router.push('/tournament/all')}>
+                                    <Text style={styles.actionBtnText}>FIND EVENTS</Text>
+                                </TouchableOpacity>
+                            </View>
+                        )
+                    )
+                )}
+            </ScrollView>
+
+            {/* DIGITAL TICKET MODAL */}
+            <Modal visible={modalVisible} transparent animationType="slide">
+                <View style={styles.modalOverlay}>
+                    <Animated.View entering={ZoomIn.duration(300)} style={styles.ticketContainer}>
+                        {/* TICKET TOP */}
+                        <View style={styles.ticketHeader}>
+                            <View>
+                                <Text style={styles.ticketBrand}>ARENAPRO PASS</Text>
+                                <Text style={styles.ticketId}>ID: {selectedBooking?._id?.toUpperCase().substring(0, 10)}</Text>
+                            </View>
+                            <TouchableOpacity onPress={() => setModalVisible(false)} style={styles.closeBtn}>
+                                <XCircle color="#94A3B8" size={24} />
+                            </TouchableOpacity>
+                        </View>
+
+                        {/* TICKET BODY */}
+                        <View style={styles.ticketContent}>
+                            <Text style={styles.ticketVenue}>{selectedBooking?.turfName}</Text>
+                            <View style={styles.ticketInfoGrid}>
+                                <View style={styles.ticketInfoItem}>
+                                    <Text style={styles.ticketInfoLabel}>{selectedBooking?.isTournament ? 'START DATE' : 'DATE'}</Text>
+                                    <Text style={styles.ticketInfoValue}>{selectedBooking?.date}</Text>
+                                </View>
+                                <View style={styles.ticketInfoItem}>
+                                    <Text style={styles.ticketInfoLabel}>{selectedBooking?.isTournament ? 'ENTRY' : 'TIME'}</Text>
+                                    <Text style={styles.ticketInfoValue}>{selectedBooking?.timeSlot?.split(' (')[0]}</Text>
+                                </View>
+                            </View>
+
+                            {/* QR CODE SECTION */}
+                            <View style={styles.qrContainer}>
+                                <View style={styles.qrFrame}>
+                                    <Image 
+                                        source={{ uri: `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=ARENA-${selectedBooking?._id || selectedBooking?.id}` }} 
+                                        style={styles.qrImage} 
+                                    />
+                                </View>
+                                <Text style={styles.qrHint}>Present this QR at the venue entry</Text>
+                                <Text style={styles.manualId}>{selectedBooking?.isTournament ? 'SQUAD' : 'PASS'} ID: {selectedBooking?._id?.toUpperCase() || selectedBooking?.id?.toUpperCase()}</Text>
+                            </View>
+
+                            <View style={styles.ticketStatus}>
+                                <CheckCircle color="#00FF00" size={18} />
+                                <Text style={styles.ticketStatusText}>{selectedBooking?.isTournament ? 'TEAM REGISTERED' : 'VALID FOR ENTRY'}</Text>
+                            </View>
+                        </View>
+
+                        {/* TICKET FOOTER */}
+                        <View style={styles.ticketFooter}>
+                            <Text style={styles.footerNote}>Ensure you arrive 15 mins early. Carry valid ID.</Text>
+                        </View>
+                    </Animated.View>
+                </View>
+            </Modal>
         </View>
-      </Modal>
-    </View>
-  );
+    );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#070A14',
-  },
-  header: {
-    paddingTop: 60,
-    paddingHorizontal: 25,
-    paddingBottom: 20,
-  },
-  title: {
-    color: '#FFFFFF',
-    fontSize: 28,
-    fontWeight: '900',
-  },
-  tabContainer: {
-    flexDirection: 'row',
-    marginHorizontal: 25,
-    backgroundColor: '#1E293B',
-    borderRadius: 15,
-    padding: 5,
-    marginBottom: 20,
-  },
-  tab: {
-    flex: 1,
-    paddingVertical: 12,
-    alignItems: 'center',
-    borderRadius: 12,
-  },
-  activeTab: {
-    backgroundColor: '#00FF00',
-  },
-  tabText: {
-    color: '#94A3B8',
-    fontWeight: '700',
-  },
-  activeTabText: {
-    color: '#000000',
-  },
-  list: {
-    paddingHorizontal: 25,
-    paddingBottom: 100,
-  },
-  card: {
-    backgroundColor: '#1E293B',
-    borderRadius: 20,
-    padding: 20,
-    marginBottom: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.05)',
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  thumb: {
-    width: 50,
-    height: 50,
-    borderRadius: 12,
-  },
-  headerInfo: {
-    flex: 1,
-    marginLeft: 15,
-  },
-  sportText: {
-    color: '#00FF00',
-    fontSize: 10,
-    fontWeight: '900',
-    letterSpacing: 1,
-  },
-  arenaName: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '800',
-    marginTop: 2,
-  },
-  statusBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 8,
-  },
-  confirmedBg: {
-    backgroundColor: 'rgba(0, 255, 0, 0.1)',
-  },
-  completedBg: {
-    backgroundColor: 'rgba(148, 163, 184, 0.1)',
-  },
-  cancelledBg: {
-    backgroundColor: 'rgba(255, 59, 48, 0.1)',
-  },
-  statusText: {
-    color: '#00FF00',
-    fontSize: 10,
-    fontWeight: '700',
-  },
-  cancelledText: {
-    color: '#FF3B30',
-  },
-  divider: {
-    height: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    marginVertical: 15,
-  },
-  detailsContainer: {
-    gap: 10,
-  },
-  detailRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  detailText: {
-    color: '#94A3B8',
-    fontSize: 14,
-  },
-  bookingId: {
-    color: '#94A3B8',
-    fontSize: 12,
-    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
-  },
-  actionRow: {
-    flexDirection: 'row',
-    marginTop: 20,
-    gap: 12,
-  },
-  viewTicketBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    backgroundColor: '#00FF00',
-    height: 50,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 10,
-  },
-  viewTicketText: {
-    color: '#000000',
-    fontWeight: '900',
-    fontSize: 14,
-  },
-  cancelBtn: {
-    width: 50,
-    height: 50,
-    borderRadius: 12,
-    backgroundColor: 'rgba(255, 59, 48, 0.1)',
-    justifyContent: 'center',
-    alignItems: 'center', 
-    borderWidth: 1,
-    borderColor: 'rgba(255, 59, 48, 0.3)',
-  },
-  emptyState: {
-    alignItems: 'center',
-    marginTop: 50,
-  },
-  emptyText: {
-    color: '#94A3B8',
-    fontSize: 16,
-  },
-  // Ticket Modal Styles
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.85)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 25,
-  },
-  ticketContainer: {
-    width: '100%',
-    backgroundColor: '#1E293B',
-    borderRadius: 25,
-    overflow: 'hidden',
-  },
-  ticketTop: {
-    padding: 25,
-  },
-  ticketHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  ticketTag: {
-    color: '#00FF00',
-    fontWeight: '900',
-    letterSpacing: 2,
-    fontSize: 12,
-  },
-  ticketArena: {
-    color: '#FFFFFF',
-    fontSize: 24,
-    fontWeight: '900',
-    marginBottom: 20,
-  },
-  ticketRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  label: {
-    color: '#64748B',
-    fontSize: 10,
-    fontWeight: '700',
-    marginBottom: 4,
-  },
-  value: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  alignRight: {
-    alignItems: 'flex-end',
-  },
-  dashedContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    height: 30,
-  },
-  cutoutLeft: {
-    width: 20,
-    height: 20,
-    backgroundColor: '#070A14',
-    borderRadius: 10,
-    marginLeft: -10,
-  },
-  cutoutRight: {
-    width: 20,
-    height: 20,
-    backgroundColor: '#070A14',
-    borderRadius: 10,
-    marginRight: -10,
-  },
-  dashedLine: {
-    flex: 1,
-    height: 1,
-    borderWidth: 1,
-    borderColor: '#64748B',
-    borderStyle: 'dashed',
-    marginHorizontal: 10,
-  },
-  ticketBottom: {
-    padding: 25,
-    alignItems: 'center',
-  },
-  labelCenter: {
-    color: '#64748B',
-    fontSize: 10,
-    fontWeight: '700',
-    marginBottom: 15,
-  },
-  qrContainer: {
-    backgroundColor: '#FFFFFF',
-    padding: 15,
-    borderRadius: 20,
-    marginBottom: 15,
-  },
-  
-  // Custom Confirmation Modal Styles
-  cancelOverlay: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.6)',
-  },
-  cancelModalCard: {
-    width: '85%',
-    backgroundColor: '#0F172A',
-    borderRadius: 24,
-    padding: 30,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 59, 48, 0.3)',
-    shadowColor: '#FF3B30',
-    shadowOpacity: 0.15,
-    shadowRadius: 30,
-    elevation: 10,
-  },
-  warningIconCircle: {
-      width: 70, height: 70,
-      borderRadius: 35,
-      backgroundColor: 'rgba(255, 59, 48, 0.1)',
-      borderWidth: 1,
-      borderColor: 'rgba(255, 59, 48, 0.3)',
-      justifyContent: 'center',
-      alignItems: 'center',
-      marginBottom: 20,
-  },
-  cancelModalTitle: {
-      color: '#FFFFFF',
-      fontSize: 22,
-      fontWeight: '800',
-      marginBottom: 12,
-  },
-  cancelModalDesc: {
-      color: '#94A3B8',
-      fontSize: 14,
-      textAlign: 'center',
-      lineHeight: 22,
-      marginBottom: 30,
-  },
-  boldText: {
-      color: '#FFFFFF',
-      fontWeight: '700',
-  },
-  cancelModalActions: {
-      flexDirection: 'row',
-      gap: 15,
-      width: '100%',
-  },
-  keepBtn: {
-      flex: 1,
-      paddingVertical: 14,
-      backgroundColor: '#1E293B',
-      borderRadius: 14,
-      alignItems: 'center',
-  },
-  keepBtnText: {
-      color: '#FFFFFF',
-      fontSize: 15,
-      fontWeight: '700',
-  },
-  confirmCancelBtn: {
-      flex: 1,
-      paddingVertical: 14,
-      backgroundColor: '#FF3B30',
-      borderRadius: 14,
-      alignItems: 'center',
-      shadowColor: '#FF3B30',
-      shadowOpacity: 0.4,
-      shadowRadius: 8,
-      elevation: 5,
-  },
-  confirmCancelBtnText: {
-      color: '#FFFFFF',
-      fontSize: 15,
-      fontWeight: '800',
-  },
+    container: { flex: 1, backgroundColor: '#090E1A' },
+    header: { paddingTop: 60, paddingHorizontal: 25, paddingBottom: 20, backgroundColor: '#0F172A' },
+    headerTitle: { color: '#FFF', fontSize: 24, fontWeight: '900', letterSpacing: 0.5 },
+    
+    tabBar: { flexDirection: 'row', backgroundColor: '#0F172A', paddingHorizontal: 20, paddingBottom: 15 },
+    tab: { flex: 1, paddingVertical: 12, alignItems: 'center', borderBottomWidth: 2, borderBottomColor: 'transparent' },
+    activeTab: { borderBottomColor: '#00FF00' },
+    tabText: { color: '#64748B', fontSize: 12, fontWeight: '800', letterSpacing: 0.5 },
+    activeTabText: { color: '#FFF' },
+
+    scrollContent: { padding: 20, paddingBottom: 120 },
+    center: { marginTop: 100, alignItems: 'center' },
+    hint: { color: '#64748B', marginTop: 15, fontSize: 13, fontWeight: '600' },
+
+    card: { backgroundColor: '#131C31', borderRadius: 24, padding: 20, marginBottom: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)' },
+    cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 },
+    typeBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8, borderWidth: 1, borderColor: 'rgba(0, 255, 0, 0.2)' },
+    typeText: { color: '#00FF00', fontSize: 10, fontWeight: '800' },
+    statusBadge: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 },
+    statusText: { fontSize: 10, fontWeight: '900' },
+
+    title: { color: '#FFF', fontSize: 20, fontWeight: '800', marginBottom: 12 },
+    metaRow: { flexDirection: 'row', gap: 15, marginBottom: 15 },
+    metaItem: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+    metaText: { color: '#94A3B8', fontSize: 13, fontWeight: '600' },
+
+    teamBox: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: 'rgba(255,255,255,0.03)', padding: 12, borderRadius: 12, marginBottom: 10 },
+    teamName: { color: '#00FF00', fontSize: 14, fontWeight: '800' },
+    playersRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 15 },
+    playersText: { color: '#64748B', fontSize: 12, fontWeight: '600' },
+
+    cardFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: 15, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.05)' },
+    priceBox: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+    priceText: { color: '#FFF', fontSize: 18, fontWeight: '900' },
+    detailsBtn: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+    detailsBtnText: { color: '#00FF00', fontSize: 12, fontWeight: '900' },
+
+    empty: { marginTop: 60, alignItems: 'center', paddingHorizontal: 40 },
+    emptyTitle: { color: '#FFF', fontSize: 22, fontWeight: '900', marginTop: 20, marginBottom: 10 },
+    emptyDesc: { color: '#94A3B8', textAlign: 'center', lineHeight: 22, marginBottom: 30, fontSize: 14 },
+    actionBtn: { backgroundColor: '#00FF00', paddingHorizontal: 30, paddingVertical: 15, borderRadius: 15, shadowColor: '#00FF00', shadowOpacity: 0.3, shadowRadius: 10, elevation: 5 },
+    actionBtnText: { color: '#000', fontWeight: '900', letterSpacing: 1, fontSize: 13 },
+
+    // MODAL STYLES
+    modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.9)', justifyContent: 'center', alignItems: 'center', padding: 25 },
+    ticketContainer: { width: '100%', backgroundColor: '#FFF', borderRadius: 30, overflow: 'hidden' },
+    ticketHeader: { backgroundColor: '#000', padding: 25, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+    ticketBrand: { color: '#00FF00', fontSize: 20, fontWeight: '900', letterSpacing: 2 },
+    ticketId: { color: '#00FF00', fontSize: 13, fontWeight: '800', marginTop: 4, letterSpacing: 1 },
+    closeBtn: { padding: 5 },
+    
+    ticketContent: { padding: 30, alignItems: 'center' },
+    ticketVenue: { fontSize: 24, fontWeight: '900', color: '#000', textAlign: 'center', marginBottom: 25 },
+    ticketInfoGrid: { flexDirection: 'row', gap: 40, marginBottom: 30 },
+    ticketInfoItem: { alignItems: 'center' },
+    ticketInfoLabel: { fontSize: 10, color: '#94A3B8', fontWeight: '800', marginBottom: 5 },
+    ticketInfoValue: { fontSize: 16, color: '#000', fontWeight: '900' },
+
+    qrContainer: { padding: 20, alignItems: 'center', backgroundColor: '#F8FAFC', borderRadius: 20, borderStyle: 'dashed', borderWidth: 2, borderColor: '#E2E8F0', width: '100%' },
+    qrFrame: { padding: 15, backgroundColor: '#FFF', borderRadius: 15, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 10, elevation: 2 },
+    qrImage: { width: 160, height: 160 },
+    qrHint: { marginTop: 15, color: '#64748B', fontSize: 11, fontWeight: '700' },
+    manualId: { marginTop: 5, color: '#000', fontSize: 13, fontWeight: '900', letterSpacing: 1 },
+
+    ticketStatus: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 25, backgroundColor: 'rgba(0, 255, 0, 0.1)', paddingHorizontal: 20, paddingVertical: 10, borderRadius: 30 },
+    ticketStatusText: { color: '#008000', fontSize: 12, fontWeight: '900', letterSpacing: 1 },
+
+    ticketFooter: { backgroundColor: '#F1F5F9', padding: 20, borderTopWidth: 1, borderTopColor: '#E2E8F0', borderStyle: 'dashed' },
+    footerNote: { color: '#64748B', fontSize: 10, textAlign: 'center', fontWeight: '600' }
 });

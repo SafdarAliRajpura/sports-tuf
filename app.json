@@ -44,7 +44,8 @@
         {
           "locationWhenInUsePermission": "Allow Football_Turf to show local venues near you."
         }
-      ]
+      ],
+      "@react-native-community/datetimepicker"
     ],
     "experiments": {
       "typedRoutes": true,

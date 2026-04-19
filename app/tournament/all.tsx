@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Image, TextInput, RefreshControl } from 'react-native';
 import { useRouter } from 'expo-router';
-import { ArrowLeft, Search, Trophy, Calendar, MapPin, Target, IndianRupee, ChevronRight, Filter } from 'lucide-react-native';
+import { ArrowLeft, Search, Trophy, Calendar, MapPin, Target, IndianRupee, ChevronRight, Filter, Users } from 'lucide-react-native';
 import apiClient from '../../src/api/apiClient';
 import { StatusBar } from 'expo-status-bar';
 

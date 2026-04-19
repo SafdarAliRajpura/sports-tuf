@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { BlurView } from 'expo-blur';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { ArrowLeft, CheckCircle, ChevronRight, Coffee, Info, MapPin, ParkingCircle, Share2, Shield, Star, Users, Wifi, X, ArrowRight, Navigation2, CreditCard, Banknote, Smartphone } from 'lucide-react-native';
+import { ArrowLeft, CheckCircle, ChevronRight, ChevronDown, Coffee, Info, MapPin, ParkingCircle, Share2, Shield, Star, Users, Wifi, X, ArrowRight, Navigation2, CreditCard, Banknote, Smartphone } from 'lucide-react-native';
 import React, { useState, useEffect } from 'react';
 import Animated, { FadeIn, FadeOut, ZoomIn, ZoomOut, SlideInUp, SlideOutDown, SlideInDown, FadeInLeft, FadeInRight, FadeInUp, FadeInDown } from "react-native-reanimated";
 import { Dimensions, Image, Modal, ScrollView, Share, StyleSheet, Text, TouchableOpacity, View, Pressable } from 'react-native';
@@ -38,9 +38,18 @@ export default function VenueDetailsScreen() {
     useEffect(() => {
         if (id) {
             apiClient.get(`/api/venues/${id}`)
-               .then(res => setFetchedVenue(res.data.data))
+               .then(res => {
+                   const v = res.data.data;
+                   setFetchedVenue(v);
+                   // Auto-select first court if available for this sport
+                   if (v.courts && Array.isArray(v.courts)) {
+                       const sportCourts = v.courts.filter((c: any) => !params.sport || c.category === params.sport);
+                       if (sportCourts.length > 0) {
+                           setSelectedCourt(sportCourts[0].name);
+                       }
+                   }
+               })
                .catch(err => console.error('Error fetching venue from backend', err));
-
         }
     }, [id]);
 
@@ -66,6 +75,7 @@ export default function VenueDetailsScreen() {
     const [showSuccessModal, setShowSuccessModal] = useState(false);
     const [selectedDate, setSelectedDate] = useState(0);
     const [selectedCourt, setSelectedCourt] = useState<string>('');
+    const [showCourtDropdown, setShowCourtDropdown] = useState(false);
     const [selectedSlots, setSelectedSlots] = useState<string[]>([]);
     const addBooking = useBookingStore((state: any) => state.addBooking);
 
@@ -194,10 +204,10 @@ export default function VenueDetailsScreen() {
                 return;
             }
 
-            // Use selected court or default to first
-            const finalCourt = selectedCourt || (venueData.courts && venueData.courts['Football'] && venueData.courts['Football'].length > 0 
-                ? venueData.courts['Football'][0].split(' - ')[0] 
-                : 'Turf A (5v5)');
+            // Use selected court or default to first from the array
+            const finalCourt = selectedCourt || (Array.isArray(venueData.courts) && venueData.courts.length > 0 
+                ? venueData.courts.find((c: any) => !params.sport || c.category === params.sport)?.name || venueData.courts[0].name
+                : 'Main Arena (5v5)');
 
             const finalBookingPayload = {
                 userId: uid,
@@ -252,27 +262,38 @@ export default function VenueDetailsScreen() {
         : [venueData.image || params.image || 'https://images.unsplash.com/photo-1574629810360-7efbb1925713?q=80&w=600'];
 
     // Map backend amenities string array to icon objects
-    const finalAmenities = fetchedVenue && fetchedVenue.amenities ? 
-        fetchedVenue.amenities.map((am: string) => {
-           let iconName = 'Info';
-           if(am === 'Parking') iconName = 'ParkingCircle';
-           if(am === 'Free WiFi' || am === 'Wifi' || am === 'Drinking Water') iconName = 'Coffee';
-           if(am === 'Cafeteria') iconName = 'Coffee';
-           if(am === 'First Aid') iconName = 'Shield';
-           if(am === 'Change Room' || am === 'Washroom') iconName = 'Users';
-           if(am === 'Floodlights') iconName = 'Star';
-           return { id: am, label: am, iconName };
-        }) : venueData.amenities;
+    const finalAmenities = React.useMemo(() => {
+        const source = (fetchedVenue && fetchedVenue.amenities) ? fetchedVenue.amenities : (venueData.amenities || []);
+        
+        return source.map((am: any) => {
+            // If it's already an object (from mock data), return it
+            if (typeof am === 'object') return am;
+
+            let iconName = 'Info';
+            const lowerAm = am.toLowerCase();
+            
+            if (lowerAm.includes('park')) iconName = 'ParkingCircle';
+            else if (lowerAm.includes('wifi')) iconName = 'Wifi';
+            else if (lowerAm.includes('water') || lowerAm.includes('drink') || lowerAm.includes('coffee') || lowerAm.includes('cafe')) iconName = 'Coffee';
+            else if (lowerAm.includes('security') || lowerAm.includes('cctv') || lowerAm.includes('safe') || lowerAm.includes('guard')) iconName = 'Shield';
+            else if (lowerAm.includes('medical') || lowerAm.includes('aid') || lowerAm.includes('doctor')) iconName = 'Info';
+            else if (lowerAm.includes('change') || lowerAm.includes('wash') || lowerAm.includes('shower') || lowerAm.includes('toilet') || lowerAm.includes('restroom')) iconName = 'Users';
+            else if (lowerAm.includes('light') || lowerAm.includes('flood')) iconName = 'Star';
+            else if (lowerAm.includes('ball') || lowerAm.includes('equip') || lowerAm.includes('rent')) iconName = 'Info';
+            
+            return { id: am, label: am, iconName };
+        });
+    }, [fetchedVenue, venueData]);
 
     const getIcon = (iconName: string) => {
-        const props = { color: "#00FF00", size: 20 };
+        const props = { color: "#00FF00", size: 24 };
         switch (iconName) {
             case 'ParkingCircle': return <ParkingCircle {...props} />;
             case 'Wifi': return <Wifi {...props} />;
             case 'Coffee': return <Coffee {...props} />;
             case 'Shield': return <Shield {...props} />;
-            case 'Info': return <Info {...props} />;
             case 'Users': return <Users {...props} />;
+            case 'Star': return <Star {...props} />;
             default: return <Info {...props} />;
         }
     };
@@ -427,24 +448,56 @@ export default function VenueDetailsScreen() {
                             </View>
                         </View>
 
-                        {/* COURT SELECTOR */}
+                        {/* COURT SELECTOR (DROPDOWN STYLE LIKE SITE) */}
                         <View style={styles.modalSection}>
-                            <Text style={styles.modalSectionTitle}>Choose Arena / Court</Text>
-                            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.courtList}>
-                                {(venueData.courts?.['Football'] || ['Turf A (5v5)', 'Turf B (7v7)']).map((court: string) => {
-                                    const cName = court.split(' - ')[0];
-                                    const isSelected = selectedCourt === cName;
-                                    return (
+                            <Text style={styles.courtLabel}>PICK ARENA / COURT</Text>
+                            <TouchableOpacity 
+                                style={styles.dropdownTrigger}
+                                onPress={() => setShowCourtDropdown(!showCourtDropdown)}
+                            >
+                                <Text style={styles.dropdownText}>
+                                    {selectedCourt || "Choose your preferred ground..."}
+                                </Text>
+                                <ChevronDown color="#64748B" size={18} />
+                            </TouchableOpacity>
+
+                            {showCourtDropdown && (
+                                <View style={styles.dropdownMenu}>
+                                    {Array.isArray(venueData.courts) && venueData.courts.length > 0 ? (
+                                        venueData.courts
+                                            .filter((c: any) => {
+                                                if (!params.sport) return true;
+                                                return c.category?.toLowerCase() === (params.sport as string).toLowerCase();
+                                            })
+                                            .map((court: any) => (
+                                                <TouchableOpacity 
+                                                    key={court._id || court.name} 
+                                                    onPress={() => {
+                                                        setSelectedCourt(court.name);
+                                                        setShowCourtDropdown(false);
+                                                    }}
+                                                    style={styles.dropdownItem}
+                                                >
+                                                    <View>
+                                                        <Text style={styles.dropdownItemText}>{court.name}</Text>
+                                                        <Text style={{ color: '#00FF00', fontSize: 10, fontWeight: '600', marginTop: 2 }}>{court.category}</Text>
+                                                    </View>
+                                                    <Text style={[styles.dropdownItemText, { color: '#FFF' }]}>₹{court.price || venueData.price}</Text>
+                                                </TouchableOpacity>
+                                            ))
+                                    ) : (
                                         <TouchableOpacity 
-                                            key={court} 
-                                            onPress={() => setSelectedCourt(cName)}
-                                            style={[styles.courtChip, isSelected && styles.courtChipActive]}
+                                            onPress={() => {
+                                                setSelectedCourt('Main Arena (5v5)');
+                                                setShowCourtDropdown(false);
+                                            }}
+                                            style={styles.dropdownItem}
                                         >
-                                            <Text style={[styles.courtChipText, isSelected && styles.courtChipTextActive]}>{cName}</Text>
+                                            <Text style={styles.dropdownItemText}>Main Arena (5v5)</Text>
                                         </TouchableOpacity>
-                                    );
-                                })}
-                            </ScrollView>
+                                    )}
+                                </View>
+                            )}
                         </View>
 
                         <ScrollView contentContainerStyle={styles.slotsGrid} showsVerticalScrollIndicator={false}>
@@ -766,13 +819,37 @@ const styles = StyleSheet.create({
     dotSelected: { backgroundColor: '#00FF00', shadowColor: '#00FF00', shadowOpacity: 0.8, shadowRadius: 5 },
     legendText: { color: '#94A3B8', fontSize: 13, fontWeight: '600' },
 
-    modalSection: { paddingHorizontal: 20, marginBottom: 20 },
-    modalSectionTitle: { color: '#94A3B8', fontSize: 10, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 12 },
-    courtList: { flexDirection: 'row' },
-    courtChip: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.05)', marginRight: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
-    courtChipActive: { backgroundColor: '#00FF00', borderColor: '#00FF00' },
-    courtChipText: { color: '#94A3B8', fontSize: 12, fontWeight: '700' },
-    courtChipTextActive: { color: '#000' },
+    modalSection: { paddingHorizontal: 20, marginBottom: 25 },
+    courtLabel: { color: '#00FF00', fontSize: 11, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 15 },
+    dropdownTrigger: { 
+        flexDirection: 'row', 
+        justifyContent: 'space-between', 
+        alignItems: 'center', 
+        backgroundColor: '#070A14', 
+        paddingHorizontal: 20, 
+        paddingVertical: 18, 
+        borderRadius: 20, 
+        borderWidth: 1, 
+        borderColor: 'rgba(255,255,255,0.1)' 
+    },
+    dropdownText: { color: '#FFF', fontSize: 14, fontWeight: '800', italic: 'true' },
+    dropdownMenu: { 
+        backgroundColor: '#131C31', 
+        marginTop: 10, 
+        borderRadius: 20, 
+        borderWidth: 1, 
+        borderColor: 'rgba(255,255,255,0.1)',
+        overflow: 'hidden'
+    },
+    dropdownItem: { 
+        padding: 18, 
+        borderBottomWidth: 1, 
+        borderBottomColor: 'rgba(255,255,255,0.05)',
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center'
+    },
+    dropdownItemText: { color: '#94A3B8', fontSize: 13, fontWeight: '700' },
 
     slotsGrid: { padding: 20, flexDirection: 'row', flexWrap: 'wrap', gap: 12, paddingBottom: 40 },
     slotCard: {

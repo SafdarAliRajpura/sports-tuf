@@ -112,7 +112,7 @@ export default function BookingHistoryScreen() {
     };
 
     const renderTournamentCard = (item: any, index: number) => {
-        const { color, bg, icon: Icon } = getStatusStyles('confirmed'); // Tournaments usually confirmed on payment
+        const { color, bg, icon: Icon } = getStatusStyles('confirmed');
         const tourId = item.tournamentId?._id || item.tournamentId;
         return (
             <Animated.View 
@@ -149,13 +149,6 @@ export default function BookingHistoryScreen() {
                         <CreditCard color="#64748B" size={14} />
                         <Text style={styles.priceText}>₹{item.tournamentId?.entryFee || 'PAID'}</Text>
                     </View>
-                    <TouchableOpacity 
-                        style={styles.detailsBtn}
-                        onPress={() => router.push(`/tournament/${tourId}`)}
-                    >
-                        <Text style={styles.detailsBtnText}>VIEW INFO</Text>
-                        <ChevronRight color="#00FF00" size={16} />
-                    </TouchableOpacity>
                 </View>
             </Animated.View>
         );
@@ -247,12 +240,12 @@ export default function BookingHistoryScreen() {
                             <Text style={styles.ticketVenue}>{selectedBooking?.turfName}</Text>
                             <View style={styles.ticketInfoGrid}>
                                 <View style={styles.ticketInfoItem}>
-                                    <Text style={styles.ticketInfoLabel}>DATE</Text>
+                                    <Text style={styles.ticketInfoLabel}>{selectedBooking?.isTournament ? 'START DATE' : 'DATE'}</Text>
                                     <Text style={styles.ticketInfoValue}>{selectedBooking?.date}</Text>
                                 </View>
                                 <View style={styles.ticketInfoItem}>
-                                    <Text style={styles.ticketInfoLabel}>TIME</Text>
-                                    <Text style={styles.ticketInfoValue}>{selectedBooking?.timeSlot}</Text>
+                                    <Text style={styles.ticketInfoLabel}>{selectedBooking?.isTournament ? 'ENTRY' : 'TIME'}</Text>
+                                    <Text style={styles.ticketInfoValue}>{selectedBooking?.timeSlot?.split(' (')[0]}</Text>
                                 </View>
                             </View>
 
@@ -260,17 +253,17 @@ export default function BookingHistoryScreen() {
                             <View style={styles.qrContainer}>
                                 <View style={styles.qrFrame}>
                                     <Image 
-                                        source={{ uri: `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=ARENA-${selectedBooking?._id}` }} 
+                                        source={{ uri: `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=ARENA-${selectedBooking?._id || selectedBooking?.id}` }} 
                                         style={styles.qrImage} 
                                     />
                                 </View>
                                 <Text style={styles.qrHint}>Present this QR at the venue entry</Text>
-                                <Text style={styles.manualId}>MANUAL ID: {selectedBooking?._id?.toUpperCase()}</Text>
+                                <Text style={styles.manualId}>{selectedBooking?.isTournament ? 'SQUAD' : 'PASS'} ID: {selectedBooking?._id?.toUpperCase() || selectedBooking?.id?.toUpperCase()}</Text>
                             </View>
 
                             <View style={styles.ticketStatus}>
                                 <CheckCircle color="#00FF00" size={18} />
-                                <Text style={styles.ticketStatusText}>VALID FOR ENTRY</Text>
+                                <Text style={styles.ticketStatusText}>{selectedBooking?.isTournament ? 'TEAM REGISTERED' : 'VALID FOR ENTRY'}</Text>
                             </View>
                         </View>
 
