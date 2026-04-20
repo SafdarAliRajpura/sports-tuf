@@ -142,25 +142,6 @@ export default function ProfileScreen() {
           <ChevronRight color="#475569" size={20} />
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.menuItem}>
-          <View style={styles.menuIconBox}>
-            <CreditCard color="#FFFFFF" size={20} />
-          </View>
-          <Text style={styles.menuText}>Payment Methods</Text>
-          <ChevronRight color="#475569" size={20} />
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.menuItem}>
-          <View style={styles.menuIconBox}>
-            <Medal color="#FFFFFF" size={20} />
-          </View>
-          <Text style={styles.menuText}>Achievements</Text>
-          <View style={styles.notificationBadge}>
-            <Text style={styles.badgeText}>2 New</Text>
-          </View>
-          <ChevronRight color="#475569" size={20} />
-        </TouchableOpacity>
-
         <Text style={[styles.sectionHeader, { marginTop: 30 }]}>SETTINGS</Text>
 
         <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/profile/security')}>

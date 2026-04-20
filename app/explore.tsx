@@ -255,7 +255,7 @@ const styles = StyleSheet.create({
 
     locationBtn: { 
         position: 'absolute', 
-        bottom: 125, 
+        bottom: 165, 
         right: 20, 
         width: 60, 
         height: 60, 
@@ -326,7 +326,7 @@ const styles = StyleSheet.create({
     bookBtn: { backgroundColor: '#00FF00', paddingHorizontal: 15, paddingVertical: 8, borderRadius: 12 },
     bookBtnText: { color: '#000', fontSize: 10, fontWeight: '900' },
 
-    statsPanel: { position: 'absolute', bottom: 120, left: 20, backgroundColor: 'rgba(9, 14, 26, 0.8)', borderRadius: 20, paddingHorizontal: 15, paddingVertical: 10, flexDirection: 'row', alignItems: 'center', gap: 15, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
+    statsPanel: { position: 'absolute', bottom: 165, left: 20, backgroundColor: 'rgba(9, 14, 26, 0.8)', borderRadius: 20, paddingHorizontal: 15, paddingVertical: 10, flexDirection: 'row', alignItems: 'center', gap: 15, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
     statItem: { alignItems: 'center' },
     statVal: { color: '#FFF', fontSize: 16, fontWeight: '900' },
     statLabel: { color: '#475569', fontSize: 8, fontWeight: '900', letterSpacing: 1 },

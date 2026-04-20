@@ -233,22 +233,22 @@ export default function NotificationModal({
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
+    backgroundColor: 'rgba(0,0,0,0.8)',
     justifyContent: 'flex-start',
     alignItems: 'center',
-    paddingTop: 100
+    paddingTop: 60
   },
   modalWrapper: {
     width: '100%',
     alignItems: 'center'
   },
   modalContent: {
-    width: '90%',
+    width: '96%',
     backgroundColor: '#0F172A',
     borderRadius: 24,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.1)',
-    maxHeight: '60%',
+    maxHeight: '85%',
     overflow: 'hidden'
   },
   header: {

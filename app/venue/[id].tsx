@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { BlurView } from 'expo-blur';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { ArrowLeft, CheckCircle, ChevronRight, ChevronDown, Coffee, Info, MapPin, ParkingCircle, Share2, Shield, Star, Users, Wifi, X, ArrowRight, Navigation2, CreditCard, Banknote, Smartphone } from 'lucide-react-native';
+import { ArrowLeft, CheckCircle, ChevronRight, ChevronDown, Coffee, Info, MapPin, ParkingCircle, Share2, Shield, Star, Users, Wifi, X, ArrowRight, Navigation2, CreditCard, Banknote, Smartphone, Zap } from 'lucide-react-native';
 import React, { useState, useEffect } from 'react';
 import Animated, { FadeIn, FadeOut, ZoomIn, ZoomOut, SlideInUp, SlideOutDown, SlideInDown, FadeInLeft, FadeInRight, FadeInUp, FadeInDown } from "react-native-reanimated";
 import { Dimensions, Image, Modal, ScrollView, Share, StyleSheet, Text, TouchableOpacity, View, Pressable, Linking, ActivityIndicator } from 'react-native';
@@ -96,7 +96,29 @@ export default function VenueDetailsScreen() {
             const res = await apiClient.get(`/api/bookings/public?turfName=${encodeURIComponent(venueName)}&date=${encodeURIComponent(dateStr)}`);
             const matchingBookings = res.data.data || [];
             const allBookedTimes = matchingBookings.filter((b: any) => !selectedCourt || b.timeSlot.includes(selectedCourt)).map((b: any) => b.timeSlot.split(' (')[0]);
-            setBookedSlots(allBookedTimes);
+            
+            // Handle past slots for today
+            const isToday = selectedDate === 0;
+            if (isToday) {
+                const now = new Date();
+                const currentHour = now.getHours();
+                
+                const getHourFromLabel = (label: string) => {
+                    const [time, period] = label.split(' ');
+                    let [hour] = time.split(':').map(Number);
+                    if (period === 'PM' && hour !== 12) hour += 12;
+                    if (period === 'AM' && hour === 12) hour = 0;
+                    return hour;
+                };
+
+                const pastSlots = dynamicSlots.filter((s: any) => getHourFromLabel(s.label) <= currentHour).map((s: any) => s.label);
+                
+                // Merge real bookings with past slots
+                const combined = Array.from(new Set([...allBookedTimes, ...pastSlots]));
+                setBookedSlots(combined);
+            } else {
+                setBookedSlots(allBookedTimes);
+            }
         } catch (error) { console.error('Error fetching booked slots:', error); }
     };
 
@@ -153,8 +175,10 @@ export default function VenueDetailsScreen() {
             const sortedSlots = [...selectedSlots].sort();
             const timeDisplay = sortedSlots.map(sid => dynamicSlots.find((s: any) => s.id === sid)?.label || sid).join(' & ');
             const finalCourt = selectedCourt || 'Main Arena (5v5)';
-            const venuePrice = venueData.price ? String(venueData.price).replace('₹', '') : '1500';
-            const amount = selectedSlots.length * parseInt(venuePrice);
+            const venuePrice = venueData.price ? String(venueData.price).replace(/[^\d]/g, '') : '1500';
+            const amount = selectedSlots.length * parseInt(venuePrice || '1500');
+
+            console.log(`[PAYMENT] Initiating order | Amount: ${amount} | Slots: ${selectedSlots.length}`);
 
             const res = await apiClient.post('/api/payments/order', {
                 amount,
@@ -238,7 +262,8 @@ export default function VenueDetailsScreen() {
                 date: dates[selectedDate].fullDate,
                 timeSlot: `${timeDisplay} (${finalCourt}) - 1h`,
                 price: String(price),
-                status: 'Pending'
+                status: 'Confirmed',
+                color: 'bg-emerald-500'
             });
             setLoading(false);
             setShowPaymentModal(false);
@@ -292,7 +317,33 @@ export default function VenueDetailsScreen() {
 
                 {/* About Section */}
                 <View style={styles.sectionHeader}><Text style={styles.sectionTitle}>About Venue</Text></View>
-                <Text style={styles.aboutText}>{venueData.description}</Text>
+                <Text style={styles.aboutText}>
+                    {venueData.description || 
+                     venueData.about || 
+                     `${venueData.title} offers a world-class playing experience with its high-quality synthetic turf and professional lighting. Perfect for 5v5 and 7v7 matches, this arena is designed to meet the standards of the most dedicated athletes.`}
+                </Text>
+
+                {/* Amenities Section */}
+                {venueData.amenities && venueData.amenities.length > 0 && (
+                    <>
+                        <View style={styles.sectionHeader}><Text style={styles.sectionTitle}>Amenities</Text></View>
+                        <View style={styles.amenitiesGrid}>
+                            {venueData.amenities.map((item: string, idx: number) => (
+                                <View key={idx} style={styles.amenityItem}>
+                                    <View style={styles.amenityIconBox}>
+                                        {item.toLowerCase().includes('light') && <Zap color="#00FF00" size={16} />}
+                                        {item.toLowerCase().includes('park') && <ParkingCircle color="#00FF00" size={16} />}
+                                        {item.toLowerCase().includes('water') && <Coffee color="#00FF00" size={16} />}
+                                        {item.toLowerCase().includes('wifi') && <Wifi color="#00FF00" size={16} />}
+                                        {item.toLowerCase().includes('wash') && <Users color="#00FF00" size={16} />}
+                                        {!['light', 'park', 'water', 'wifi', 'wash'].some(k => item.toLowerCase().includes(k)) && <Info color="#00FF00" size={16} />}
+                                    </View>
+                                    <Text style={styles.amenityText}>{item}</Text>
+                                </View>
+                            ))}
+                        </View>
+                    </>
+                )}
             </ScrollView>
 
             {/* Bottom Bar */}
@@ -308,6 +359,22 @@ export default function VenueDetailsScreen() {
                     <Animated.View entering={FadeInUp} style={styles.modalContainer}>
                         <View style={styles.modalHeader}><Text style={styles.modalTitle}>Select Slots</Text><TouchableOpacity onPress={() => setShowBookingModal(false)}><X color="#FFF" size={24} /></TouchableOpacity></View>
                         
+                        <View style={{ paddingHorizontal: 20, marginBottom: 15 }}>
+                            <Text style={styles.inputLabel}>CHOOSE ARENA / COURT</Text>
+                            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10, paddingTop: 10 }}>
+                                {(venueData.courts || [{ name: 'Main Arena (5v5)', category: 'Football' }]).map((court: any, idx: number) => (
+                                    <TouchableOpacity 
+                                        key={idx} 
+                                        style={[styles.courtCard, selectedCourt === court.name && styles.courtCardActive]}
+                                        onPress={() => setSelectedCourt(court.name)}
+                                    >
+                                        <Text style={[styles.courtName, selectedCourt === court.name && styles.courtNameActive]}>{court.name}</Text>
+                                        <Text style={styles.courtCategory}>{court.category || 'Football'}</Text>
+                                    </TouchableOpacity>
+                                ))}
+                            </ScrollView>
+                        </View>
+
                         <ScrollView style={{ maxHeight: 400 }}>
                             <View style={styles.slotsGrid}>
                                 {dynamicSlots.map((slot: any) => {
@@ -434,6 +501,10 @@ const styles = StyleSheet.create({
     monthText: { color: '#94A3B8', fontSize: 12 },
     activeDateText: { color: '#000' },
     aboutText: { color: '#94A3B8', fontSize: 15, lineHeight: 24, paddingHorizontal: 20 },
+    amenitiesGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, paddingHorizontal: 20, marginTop: 10 },
+    amenityItem: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#1E293B', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)' },
+    amenityIconBox: { width: 28, height: 28, borderRadius: 8, backgroundColor: 'rgba(0,255,0,0.1)', justifyContent: 'center', alignItems: 'center' },
+    amenityText: { color: '#FFF', fontSize: 12, fontWeight: '700' },
     bottomBar: { position: 'absolute', bottom: 0, width: '100%', backgroundColor: '#0F172A', padding: 25, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderTopLeftRadius: 30, borderTopRightRadius: 30 },
     priceLabel: { color: '#94A3B8', fontSize: 12 },
     bottomPrice: { color: '#FFF', fontSize: 22, fontWeight: '900' },
@@ -473,5 +544,11 @@ const styles = StyleSheet.create({
     successCard: { width: '80%', backgroundColor: '#131C31', borderRadius: 30, padding: 30, alignItems: 'center', borderWidth: 1, borderColor: 'rgba(0,255,0,0.2)' },
     successTitle: { color: '#FFF', fontSize: 20, fontWeight: '900', marginTop: 20, textAlign: 'center' },
     homeButton: { backgroundColor: '#00FF00', paddingHorizontal: 30, paddingVertical: 15, borderRadius: 15, marginTop: 30 },
-    homeButtonText: { color: '#000', fontWeight: '900' }
+    homeButtonText: { color: '#000', fontWeight: '900' },
+    inputLabel: { color: '#64748B', fontSize: 11, fontWeight: '800', marginBottom: 8, letterSpacing: 1 },
+    courtCard: { paddingHorizontal: 20, paddingVertical: 12, backgroundColor: '#1E293B', borderRadius: 15, borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)', minWidth: 100, alignItems: 'center' },
+    courtCardActive: { borderColor: '#00FF00', backgroundColor: 'rgba(0, 255, 0, 0.1)' },
+    courtName: { color: '#FFF', fontSize: 14, fontWeight: '800' },
+    courtNameActive: { color: '#00FF00' },
+    courtCategory: { color: '#64748B', fontSize: 10, fontWeight: '600', marginTop: 2 }
 });
