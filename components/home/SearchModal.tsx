@@ -7,11 +7,12 @@ import apiClient from '../../src/api/apiClient';
 interface SearchModalProps {
   visible: boolean;
   onClose: () => void;
+  initialFilter?: string;
 }
 
 const FILTERS = ['All', 'Football', 'Cricket', 'Pickleball', 'Badminton'];
 
-export default function SearchModal({ visible, onClose }: SearchModalProps) {
+export default function SearchModal({ visible, onClose, initialFilter }: SearchModalProps) {
   const router = useRouter();
   const [query, setQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState('All');
@@ -22,21 +23,32 @@ export default function SearchModal({ visible, onClose }: SearchModalProps) {
   const RECENT_SEARCHES = ['Kick Off Turf', 'Sardar Patel Stadium', 'Apex Pickleball'];
 
   useEffect(() => {
+    if (visible) {
+      setActiveFilter(initialFilter || 'All');
+      if (initialFilter && initialFilter !== 'All') {
+          handleSearch(initialFilter);
+      }
+    }
+  }, [visible, initialFilter]);
+
+  useEffect(() => {
     if (query.length > 2) {
       handleSearch();
+    } else if (query.length === 0 && activeFilter !== 'All') {
+        handleSearch();
     } else {
       setResults([]);
     }
   }, [query, activeFilter]);
 
-  const handleSearch = async () => {
+  const handleSearch = async (overrideFilter?: string) => {
     setLoading(true);
+    const filterToUse = overrideFilter || activeFilter;
     try {
-      // Use the backend filtering logic (search query and sport filter)
       const res = await apiClient.get('/api/venues', {
         params: {
             search: query,
-            sport: activeFilter === 'All' ? undefined : activeFilter
+            sport: filterToUse === 'All' ? undefined : filterToUse
         }
       });
       

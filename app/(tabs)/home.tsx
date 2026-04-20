@@ -22,6 +22,7 @@ const Flame = (props: any) => <Feather name="zap" {...props} />;
 const MapPin = (props: any) => <Feather name="map-pin" {...props} />;
 const Medal = (props: any) => <FontAwesome5 name="medal" {...props} />;
 const Search = (props: any) => <Feather name="search" {...props} />;
+const X = (props: any) => <Feather name="x" {...props} />;
 const Star = (props: any) => <Feather name="star" {...props} />;
 const Trophy = (props: any) => <FontAwesome5 name="trophy" {...props} />;
 const Users = (props: any) => <Feather name="users" {...props} />;
@@ -62,8 +63,21 @@ export default function ArenaHomeScreen() {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [commentText, setCommentText] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [categories, setCategories] = useState<any[]>([]);
 
   const { location, loading: locationLoading } = useUserLocation();
+  const [selectedCategory, setSelectedCategory] = useState('All');
+
+  const dynamicCategories = React.useMemo(() => {
+    // Merge fixed icons with backend data
+    return CATEGORIES.map(cat => {
+      const backendCat = categories.find(c => c.title.toLowerCase() === cat.name.toLowerCase());
+      return { 
+        ...cat, 
+        count: backendCat ? backendCat.count : 0 
+      };
+    });
+  }, [venues, categories]);
 
   useFocusEffect(
     React.useCallback(() => {
@@ -87,7 +101,8 @@ export default function ArenaHomeScreen() {
             discRes, 
             eventRes, 
             statsRes, 
-            notifRes
+            notifRes,
+            catRes
           ] = await Promise.all([
             apiClient.get('/api/auth/me').catch(() => ({ data: null })),
             apiClient.get('/api/venues').catch(() => ({ data: null })),
@@ -96,7 +111,8 @@ export default function ArenaHomeScreen() {
             apiClient.get('/api/community/discussions').catch(() => ({ data: null })),
             apiClient.get('/api/community/events').catch(() => ({ data: null })),
             apiClient.get('/api/analytics/platform-stats').catch(() => ({ data: null })),
-            apiClient.get('/api/notifications').catch(() => ({ data: null }))
+            apiClient.get('/api/notifications').catch(() => ({ data: null })),
+            apiClient.get('/api/venues/categories').catch(() => ({ data: null }))
           ]);
 
           // Update State Safely
@@ -139,6 +155,10 @@ export default function ArenaHomeScreen() {
           }
 
           if (statsRes?.data?.success) setPlatformStats(statsRes.data.data);
+
+          if (catRes?.data?.success) {
+            setCategories(catRes.data.data);
+          }
 
           if (notifRes?.data?.success) {
             const unread = notifRes.data.data.some((n: any) => !n.isRead);
@@ -396,22 +416,19 @@ export default function ArenaHomeScreen() {
           </View>
         ) : (
           <>
-            {/* 4. SEARCH BLOCK */}
-            <TouchableOpacity style={styles.searchContainer} onPress={() => setShowSearch(true)}>
-              <Search color="#94A3B8" size={20} />
-              <Text style={styles.searchPlaceholder}>Search for venues, sports...</Text>
-            </TouchableOpacity>
-
             {/* 5. SPORT GRID BLOCK */}
             <View style={styles.gridContainer}>
-              {CATEGORIES.map((item) => (
+              {dynamicCategories.map((item) => (
                 <View key={item.id} style={styles.gridItemWrapper}>
                   <TouchableOpacity style={styles.gridItem} onPress={() => {
-                      // Optionally filter venues by sport
+                      setSelectedCategory(item.name);
                       setShowSearch(true);
                   }}>
                     <Text style={styles.gridIcon}>{item.icon}</Text>
-                    <Text style={styles.gridText}>{item.name}</Text>
+                    <View style={{ alignItems: 'center' }}>
+                      <Text style={styles.gridText}>{item.name}</Text>
+                      <Text style={styles.gridCountText}>{item.count} Turfs</Text>
+                    </View>
                   </TouchableOpacity>
                 </View>
               ))}
@@ -509,7 +526,14 @@ export default function ArenaHomeScreen() {
       )}
 
       <NotificationModal visible={showNotifications} onClose={() => setShowNotifications(false)} />
-      <SearchModal visible={showSearch} onClose={() => setShowSearch(false)} />
+      <SearchModal 
+        visible={showSearch} 
+        onClose={() => {
+          setShowSearch(false);
+          setSelectedCategory('All');
+        }} 
+        initialFilter={selectedCategory}
+      />
 
       {/* --- DISCUSSION DETAIL MODAL --- */}
       <Modal
@@ -1152,12 +1176,6 @@ const styles = StyleSheet.create({
     color: '#090E1A', 
   },
 
-  searchContainer: { 
-    flexDirection: 'row', alignItems: 'center', 
-    backgroundColor: '#131C31', 
-    margin: 20, padding: 18, borderRadius: 20, gap: 14, 
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)' 
-  },
   searchPlaceholder: { color: '#64748B', fontSize: 15, fontWeight: '500' },
 
   gridContainer: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 15, marginBottom: 20 },
@@ -1167,8 +1185,9 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)',
     shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8, elevation: 3,
   },
-  gridIcon: { fontSize: 28, marginBottom: 10 },
-  gridText: { color: '#E2E8F0', fontSize: 11, fontWeight: '700', textAlign: 'center', letterSpacing: 0.5 },
+  gridIcon: { fontSize: 24, marginBottom: 10 },
+  gridText: { color: '#FFF', fontSize: 11, fontWeight: '800', textAlign: 'center', letterSpacing: 0.5 },
+  gridCountText: { color: '#64748B', fontSize: 9, fontWeight: '600', marginTop: 2 },
 
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, marginTop: 20, marginBottom: 15 },
   sectionTitle: { color: '#FFFFFF', fontSize: 18, fontWeight: '800', letterSpacing: 0.5 },

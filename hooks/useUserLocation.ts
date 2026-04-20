@@ -23,14 +23,38 @@ export function useUserLocation() {
     useEffect(() => {
         (async () => {
             try {
-                let { status } = await Location.requestForegroundPermissionsAsync();
-                if (status !== 'granted') {
-                    setErrorMsg('Permission to access location was denied');
-                    setLoading(false);
+                // 1. Check if location services are enabled
+                const enabled = await Location.hasServicesEnabledAsync();
+                if (!enabled) {
+                    setErrorMsg('Location services are disabled');
+                    useDefaultLocation();
                     return;
                 }
 
-                let currentLocation = await Location.getCurrentPositionAsync({});
+                // 2. Request permissions
+                let { status } = await Location.requestForegroundPermissionsAsync();
+                if (status !== 'granted') {
+                    setErrorMsg('Permission to access location was denied');
+                    useDefaultLocation();
+                    return;
+                }
+
+                // 3. Try to get current position with a timeout
+                let currentLocation;
+                try {
+                    currentLocation = await Location.getCurrentPositionAsync({
+                        accuracy: Location.Accuracy.Balanced,
+                    });
+                } catch (posError) {
+                    console.warn("Could not get current position, trying last known:", posError);
+                    // Fallback to last known position
+                    currentLocation = await Location.getLastKnownPositionAsync({});
+                }
+
+                if (!currentLocation) {
+                    useDefaultLocation();
+                    return;
+                }
                 
                 let geocode: Location.LocationGeocodedAddress[] = [];
                 try {
@@ -53,7 +77,6 @@ export function useUserLocation() {
                         );
                         const data = await response.json();
                         
-                        // Map Nominatim data to Expo Location format
                         if (data && data.address) {
                             geocode = [{
                                 city: data.address.city || data.address.town || data.address.village,
@@ -63,7 +86,7 @@ export function useUserLocation() {
                                 subregion: data.address.county,
                                 country: data.address.country,
                                 postalCode: data.address.postcode,
-                                name: data.name || data.address.road || data.display_name.split(',')[0], // Use name or road as fallback
+                                name: data.name || data.address.road || data.display_name.split(',')[0],
                                 isoCountryCode: data.address.country_code?.toUpperCase(),
                                 timezone: null,
                                 streetNumber: data.address.house_number || null,
@@ -75,9 +98,8 @@ export function useUserLocation() {
                     }
                 }
 
-                // Use the first result if available
                 const address = geocode[0];
-                const city = address?.city ?? address?.region ?? "Unknown City";
+                const city = address?.city ?? address?.region ?? "Ahmedabad";
                 const area = address?.district ?? address?.name ?? "Current Location";
 
                 setLocation({
@@ -87,19 +109,38 @@ export function useUserLocation() {
                     },
                     address: {
                         city: city,
-                        formatted: address ? `${area}, ${city}` : "Location Found",
+                        formatted: address ? `${area}, ${city}` : "Ahmedabad, Gujarat",
                         name: address?.name,
                         district: address?.district,
                         region: address?.region,
                     }
                 });
             } catch (error) {
+                console.error("Location acquisition failed:", error);
                 setErrorMsg('Error fetching location');
-                console.error(error);
+                useDefaultLocation();
             } finally {
                 setLoading(false);
             }
         })();
+
+        function useDefaultLocation() {
+            // Default to Ahmedabad coordinates
+            setLocation({
+                coords: {
+                    latitude: 23.0225,
+                    longitude: 72.5714
+                },
+                address: {
+                    city: "Ahmedabad",
+                    formatted: "Ahmedabad, Gujarat",
+                    name: "Main Hub",
+                    district: "Ahmedabad",
+                    region: "Gujarat",
+                }
+            });
+            setLoading(false);
+        }
     }, []);
 
     return { location, errorMsg, loading };
