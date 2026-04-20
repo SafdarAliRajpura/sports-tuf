@@ -6,6 +6,7 @@ import apiClient from '../../../src/api/apiClient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { StatusBar } from 'expo-status-bar';
 import Animated, { FadeIn, FadeOut, ZoomIn } from 'react-native-reanimated';
+import { Feather } from '@expo/vector-icons';
 
 export default function TournamentRegistrationScreen() {
     const { id } = useLocalSearchParams();

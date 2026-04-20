@@ -15,7 +15,7 @@ export default function ProfileScreen() {
   const router = useRouter();
   
   // Local states for real user data
-  const [userData, setUserData] = useState<{ fullName: string; email: string; avatar?: string } | null>(null);
+  const [userData, setUserData] = useState<{ fullName: string; email: string; avatar?: string; user_profile?: string; skillLevel?: string; stats?: any; xp?: number } | null>(null);
   const [loading, setLoading] = useState(true);
 
   useFocusEffect(

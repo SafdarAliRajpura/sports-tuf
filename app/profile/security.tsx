@@ -96,7 +96,7 @@ export default function SecurityScreen() {
             <PasswordField 
               label="CURRENT PASSWORD"
               value={formData.oldPassword}
-              onChangeText={(txt) => setFormData({...formData, oldPassword: txt})}
+              onChangeText={(txt: string) => setFormData({...formData, oldPassword: txt})}
               secureTextEntry={!showPass.old}
               toggleVisible={() => setShowPass({...showPass, old: !showPass.old})}
             />
@@ -104,7 +104,7 @@ export default function SecurityScreen() {
             <PasswordField 
               label="NEW PASSWORD"
               value={formData.newPassword}
-              onChangeText={(txt) => setFormData({...formData, newPassword: txt})}
+              onChangeText={(txt: string) => setFormData({...formData, newPassword: txt})}
               secureTextEntry={!showPass.new}
               toggleVisible={() => setShowPass({...showPass, new: !showPass.new})}
             />
@@ -112,7 +112,7 @@ export default function SecurityScreen() {
             <PasswordField 
               label="CONFIRM NEW PASSWORD"
               value={formData.confirmPassword}
-              onChangeText={(txt) => setFormData({...formData, confirmPassword: txt})}
+              onChangeText={(txt: string) => setFormData({...formData, confirmPassword: txt})}
               secureTextEntry={!showPass.confirm}
               toggleVisible={() => setShowPass({...showPass, confirm: !showPass.confirm})}
             />

@@ -150,13 +150,20 @@ export default function VenueDetailsScreen() {
             const user = userData ? JSON.parse(userData) : null;
             if (!user?._id) return alert("Please login first.");
 
-            const timeDisplay = selectedSlots.sort().map(sid => dynamicSlots.find(s => s.id === sid)?.label || sid).join(' & ');
+            const sortedSlots = [...selectedSlots].sort();
+            const timeDisplay = sortedSlots.map(sid => dynamicSlots.find((s: any) => s.id === sid)?.label || sid).join(' & ');
             const finalCourt = selectedCourt || 'Main Arena (5v5)';
-            const amount = selectedSlots.length * parseInt(String(venueData.price).replace('₹', ''));
+            const venuePrice = venueData.price ? String(venueData.price).replace('₹', '') : '1500';
+            const amount = selectedSlots.length * parseInt(venuePrice);
 
             const res = await apiClient.post('/api/payments/order', {
                 amount,
-                bookingData: { turfName: venueData.title || title, sport: 'Football', date: dates[selectedDate].fullDate, timeSlot: `${timeDisplay} (${finalCourt}) - 1h` }
+                bookingData: { 
+                    turfName: venueData.title || title, 
+                    sport: 'Football', 
+                    date: dates[selectedDate].fullDate, 
+                    timeSlot: `${timeDisplay} (${finalCourt}) - 1h` 
+                }
             });
 
             if (res.data.success) {
@@ -179,12 +186,16 @@ export default function VenueDetailsScreen() {
             setShowWebView(false);
             setLoading(true);
             
-            // Extract data from URL
-            const queryParams = new URLSearchParams(url.split('?')[1]);
-            const razorpay_payment_id = queryParams.get('razorpay_payment_id');
-            const razorpay_order_id = queryParams.get('razorpay_order_id');
-            const razorpay_signature = queryParams.get('razorpay_signature');
-            const bookingId = queryParams.get('bookingId');
+            // Extract data from URL manually for maximum reliability
+            const urlParts = url.split('?');
+            const queryStr = urlParts.length > 1 ? urlParts[1] : '';
+            const params: any = {};
+            queryStr.split('&').forEach((part: any) => {
+                const [key, val] = part.split('=');
+                if (key) params[key] = decodeURIComponent(val || '');
+            });
+
+            const { razorpay_payment_id, razorpay_order_id, razorpay_signature, bookingId } = params;
 
             try {
                 await apiClient.post('/api/payments/verify', { 
@@ -212,9 +223,13 @@ export default function VenueDetailsScreen() {
         try {
             const userData = await AsyncStorage.getItem('userInfo');
             const user = userData ? JSON.parse(userData) : null;
-            const timeDisplay = selectedSlots.sort().map(sid => dynamicSlots.find(s => s.id === sid)?.label || sid).join(' & ');
+            if (!user?._id) return alert("Please login first.");
+
+            const sortedSlots = [...selectedSlots].sort();
+            const timeDisplay = sortedSlots.map(sid => dynamicSlots.find((s: any) => s.id === sid)?.label || sid).join(' & ');
             const finalCourt = selectedCourt || 'Main Arena (5v5)';
-            const price = selectedSlots.length * parseInt(String(venueData.price).replace('₹', ''));
+            const venuePrice = venueData.price ? String(venueData.price).replace('₹', '') : '1500';
+            const price = selectedSlots.length * parseInt(venuePrice);
 
             await apiClient.post('/api/bookings', {
                 userId: user?._id,
@@ -229,7 +244,10 @@ export default function VenueDetailsScreen() {
             setShowPaymentModal(false);
             setShowSuccessModal(true);
             setSelectedSlots([]);
-        } catch (error) { setLoading(false); alert("Booking Failed."); }
+        } catch (error) { 
+            setLoading(false); 
+            alert("Booking Failed."); 
+        }
     };
 
     const imageArray = venueData.images?.length > 0 ? venueData.images : [venueData.image || 'https://images.unsplash.com/photo-1574629810360-7efbb1925713?q=80&w=600'];
@@ -292,12 +310,17 @@ export default function VenueDetailsScreen() {
                         
                         <ScrollView style={{ maxHeight: 400 }}>
                             <View style={styles.slotsGrid}>
-                                {dynamicSlots.map(s => {
-                                    const isBooked = bookedSlots.includes(s.label);
-                                    const isSelected = selectedSlots.includes(s.id);
+                                {dynamicSlots.map((slot: any) => {
+                                    const isBooked = bookedSlots.includes(slot.label);
+                                    const isSelected = selectedSlots.includes(slot.id);
                                     return (
-                                        <TouchableOpacity key={s.id} disabled={isBooked} onPress={() => toggleSlot(s.id)} style={[styles.slotCard, isBooked && styles.slotCardBooked, isSelected && styles.slotCardSelected]}>
-                                            <Text style={[styles.slotText, isBooked && styles.slotTextBooked, isSelected && styles.slotTextSelected]}>{s.label}</Text>
+                                        <TouchableOpacity 
+                                            key={slot.id} 
+                                            style={[styles.slotCard, isBooked && styles.slotCardBooked, isSelected && styles.slotCardSelected]}
+                                            onPress={() => !isBooked && toggleSlot(slot.id)}
+                                            disabled={isBooked}
+                                        >
+                                            <Text style={[styles.slotText, isSelected && styles.slotTextSelected, isBooked && styles.slotTextBooked]}>{slot.label}</Text>
                                         </TouchableOpacity>
                                     );
                                 })}
@@ -428,6 +451,7 @@ const styles = StyleSheet.create({
     slotCardSelected: { backgroundColor: '#00FF00', borderWidth: 1, borderColor: '#00FF00' },
     slotText: { color: '#FFF', fontSize: 12, fontWeight: '700' },
     slotTextSelected: { color: '#000' },
+    slotTextBooked: { color: '#475569', textDecorationLine: 'line-through' },
     modalFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 25 },
     totalLabel: { color: '#94A3B8', fontSize: 12 },
     totalPrice: { color: '#FFF', fontSize: 20, fontWeight: '900' },
@@ -443,6 +467,7 @@ const styles = StyleSheet.create({
     paymentMethodTitle: { color: '#94A3B8', fontSize: 16, fontWeight: '700' },
     paymentMethodTitleActive: { color: '#FFF' },
     confirmPayBtn: { backgroundColor: '#00FF00', padding: 20, borderRadius: 20, alignItems: 'center', marginTop: 20 },
+    confirmPayBtnLoading: { opacity: 0.7 },
     confirmPayBtnText: { color: '#000', fontWeight: '900', fontSize: 16 },
     successOverlay: { flex: 1, justifyContent: 'center', alignItems: 'center' },
     successCard: { width: '80%', backgroundColor: '#131C31', borderRadius: 30, padding: 30, alignItems: 'center', borderWidth: 1, borderColor: 'rgba(0,255,0,0.2)' },
