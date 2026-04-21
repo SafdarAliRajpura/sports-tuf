@@ -3,18 +3,28 @@ import Animated, { FadeInUp, FadeOut } from "react-native-reanimated";
 import { StyleSheet, View, Text, FlatList, Image, TouchableOpacity, TextInput, Modal, Pressable } from 'react-native';
 import { Search, MapPin, Star, SlidersHorizontal, X, Check, Target, IndianRupee } from 'lucide-react-native';
 import { StatusBar } from 'expo-status-bar';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import apiClient from '../../src/api/apiClient';
 
 const SPORTS_FILTERS = ['All', 'Cricket', 'Football', 'Pickleball', 'Badminton'];
 
 export default function ExploreScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams();
+  const { category } = params; 
+  
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedSport, setSelectedSport] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
   const [venues, setVenues] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (category && typeof category === 'string') {
+      const matchedSport = SPORTS_FILTERS.find(s => s.toLowerCase() === category.toLowerCase());
+      if (matchedSport) setSelectedSport(matchedSport);
+    }
+  }, [category]);
 
   useEffect(() => {
     const fetchVenues = async () => {
@@ -24,11 +34,11 @@ export default function ExploreScreen() {
                 id: v._id,
                 name: v.name,
                 location: v.location || 'Ahmedabad',
-                distance: '1.2 km',
+                distance: v.distance || '1.2 km',
                 rating: String(v.rating || 4.5),
                 price: v.price,
-                image: v.images && v.images.length > 0 ? v.images[0] : (v.image || 'https://images.unsplash.com/photo-1574629810360-7efbbe195018?q=80&w=500'),
-                sports: [v.sport || 'Football']
+                image: v.images && v.images.length > 0 ? v.images[0] : (v.image || 'https://images.unsplash.com/photo-1574629810360-7efbb1925713?q=80&w=500'),
+                sports: v.sports && v.sports.length > 0 ? v.sports : ['Football']
             }));
             setVenues(formatted);
         } catch (error) {
@@ -47,37 +57,47 @@ export default function ExploreScreen() {
   });
 
   const renderVenue = ({ item, index }: { item: any, index: number }) => (
-    <Animated.View entering={FadeInUp.delay(index * 100).duration(400)} style={styles.cardContainer}>
+    <Animated.View key={item.id} entering={FadeInUp.delay(index * 100).duration(400)} style={styles.cardContainer}>
       <TouchableOpacity 
         style={styles.card}
         activeOpacity={0.9}
         onPress={() => router.push({
             pathname: "/venue/[id]",
-            params: { id: item.id }
+            params: { 
+                id: item.id,
+                title: item.name,
+                image: item.image,
+                price: item.price,
+                rating: item.rating
+            } // SYNCED: Passing full payload for instant navigation
         })}
       >
         <Image source={{ uri: item.image }} style={styles.cardImage} />
-        <View style={styles.cardOverlay}>
-            <View style={styles.cardHeader}>
-                <View style={styles.categoryBadge}>
-                    <Target color="#00FF00" size={12} />
-                    <Text style={styles.categoryText}>{item.sports[0]}</Text>
-                </View>
-                <View style={styles.priceBadge}>
-                    <Text style={styles.priceText}>₹{item.price}/hr</Text>
-                </View>
-            </View>
-            
+        
+        <View style={styles.cardTopOverlay}>
+             <View style={styles.sportsBadgeRow}>
+                {item.sports.map((s: string, idx: number) => (
+                    <View key={idx} style={styles.sportBadgeSmall}>
+                        <Text style={styles.sportBadgeTextSmall}>{s.toUpperCase()}</Text>
+                    </View>
+                ))}
+             </View>
+             <View style={styles.priceBadge}>
+                <Text style={styles.priceText}>₹{item.price}/hr</Text>
+             </View>
+        </View>
+
+        <View style={styles.cardOverlayGradient}>
             <View style={styles.cardFooter}>
                 <View style={styles.infoCol}>
                     <Text style={styles.cardTitle}>{item.name}</Text>
                     <View style={styles.cardMeta}>
-                        <MapPin color="#FFF" size={14} />
+                        <MapPin color="#00FF00" size={14} />
                         <Text style={styles.metaText}>{item.location} • {item.distance}</Text>
                     </View>
                 </View>
                 <View style={styles.ratingBadge}>
-                    <Star color="#FFD700" size={12} fill="#FFD700" />
+                    <Star color="#FDB813" size={12} fill="#FDB813" />
                     <Text style={styles.ratingText}>{item.rating}</Text>
                 </View>
             </View>
@@ -90,14 +110,10 @@ export default function ExploreScreen() {
     <View style={styles.container}>
       <StatusBar style="light" />
       
-      {/* HEADER SECTION */}
       <View style={styles.header}>
         <View style={styles.topRow}>
             <Text style={styles.mainHeading}>Discover <Text style={styles.highlightText}>Arenas</Text></Text>
-            <TouchableOpacity 
-              style={styles.filterBtn} 
-              onPress={() => setModalVisible(true)}
-            >
+            <TouchableOpacity style={styles.filterBtn} onPress={() => setModalVisible(true)}>
               <SlidersHorizontal color="#FFF" size={20} />
               {selectedSport !== 'All' && <View style={styles.filterDot} />}
             </TouchableOpacity>
@@ -105,18 +121,8 @@ export default function ExploreScreen() {
 
         <View style={styles.searchBar}>
           <Search color="#64748B" size={20} />
-          <TextInput 
-            placeholder="Search venues, areas or sports..." 
-            placeholderTextColor="#64748B" 
-            style={styles.searchInput} 
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-          />
-          {searchQuery.length > 0 && (
-            <TouchableOpacity onPress={() => setSearchQuery('')}>
-              <X color="#94A3B8" size={16} />
-            </TouchableOpacity>
-          )}
+          <TextInput placeholder="Search venues, areas or sports..." placeholderTextColor="#64748B" style={styles.searchInput} value={searchQuery} onChangeText={setSearchQuery} />
+          {searchQuery.length > 0 && (<TouchableOpacity onPress={() => setSearchQuery('')}><X color="#94A3B8" size={16} /></TouchableOpacity>)}
         </View>
       </View>
 
@@ -126,50 +132,17 @@ export default function ExploreScreen() {
         keyExtractor={item => item.id}
         contentContainerStyle={styles.listContainer}
         showsVerticalScrollIndicator={false}
-        ListEmptyComponent={
-            <View style={styles.emptyContainer}>
-                <Text style={styles.emptyText}>
-                    {loading ? "Searching for the best arenas..." : "No arenas found matching your criteria."}
-                </Text>
-            </View>
-        }
+        ListEmptyComponent={<View style={styles.emptyContainer}><Text style={styles.emptyText}>{loading ? "Searching..." : "No arenas found matching your criteria."}</Text></View>}
       />
 
-      <Modal 
-        animationType="slide" 
-        transparent={true} 
-        visible={modalVisible} 
-        onRequestClose={() => setModalVisible(false)}
-      >
-        <Pressable 
-          style={styles.modalOverlay} 
-          onPress={() => setModalVisible(false)}
-        >
+      <Modal animationType="slide" transparent={true} visible={modalVisible} onRequestClose={() => setModalVisible(false)}>
+        <Pressable style={styles.modalOverlay} onPress={() => setModalVisible(false)}>
           <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Filter by Sport</Text>
-              <TouchableOpacity onPress={() => setModalVisible(false)}>
-                <X color="#FFFFFF" size={24} />
-              </TouchableOpacity>
-            </View>
+            <View style={styles.modalHeader}><Text style={styles.modalTitle}>Filter by Sport</Text><TouchableOpacity onPress={() => setModalVisible(false)}><X color="#FFFFFF" size={24} /></TouchableOpacity></View>
             <View style={styles.filterGrid}>
               {SPORTS_FILTERS.map((sport) => (
-                <TouchableOpacity 
-                  key={sport} 
-                  style={[
-                    styles.filterOption, 
-                    selectedSport === sport && styles.activeOption
-                  ]}
-                  onPress={() => { setSelectedSport(sport); setModalVisible(false); }}
-                >
-                  <Text 
-                    style={[
-                      styles.filterOptionText, 
-                      selectedSport === sport && styles.activeOptionText
-                    ]}
-                  >
-                    {sport}
-                  </Text>
+                <TouchableOpacity key={sport} style={[styles.filterOption, selectedSport === sport && styles.activeOption]} onPress={() => { setSelectedSport(sport); setModalVisible(false); }}>
+                  <Text style={[styles.filterOptionText, selectedSport === sport && styles.activeOptionText]}>{sport}</Text>
                   {selectedSport === sport && <Check color="#00FF00" size={16} />}
                 </TouchableOpacity>
               ))}
@@ -193,24 +166,26 @@ const styles = StyleSheet.create({
   filterDot: { position: 'absolute', top: 12, right: 12, width: 8, height: 8, borderRadius: 4, backgroundColor: '#00FF00', borderWidth: 2, borderColor: '#1E293B' },
   
   listContainer: { padding: 20, paddingBottom: 100 },
-  cardContainer: { marginBottom: 20 },
-  card: { height: 220, borderRadius: 25, overflow: 'hidden', elevation: 8, shadowColor: '#000', shadowOpacity: 0.4, shadowRadius: 15 },
+  cardContainer: { marginBottom: 25 },
+  card: { height: 240, borderRadius: 30, overflow: 'hidden', elevation: 10, shadowColor: '#000', shadowOpacity: 0.4, shadowRadius: 15 },
   cardImage: { width: '100%', height: '100%' },
-  cardOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.45)', padding: 20, justifyContent: 'space-between' },
   
-  cardHeader: { flexDirection: 'row', justifyContent: 'space-between' },
-  categoryBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(0,0,0,0.6)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(0,255,0,0.3)' },
-  categoryText: { color: '#FFF', fontSize: 10, fontWeight: '800', textTransform: 'uppercase' },
+  cardTopOverlay: { position: 'absolute', top: 15, left: 15, right: 15, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  sportsBadgeRow: { flexDirection: 'row', gap: 6 },
+  sportBadgeSmall: { backgroundColor: 'rgba(0,0,0,0.7)', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8, borderWidth: 1, borderColor: 'rgba(0,255,0,0.3)' },
+  sportBadgeTextSmall: { color: '#00FF00', fontSize: 9, fontWeight: '900', letterSpacing: 0.5 },
+  
   priceBadge: { backgroundColor: '#00FF00', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10 },
   priceText: { color: '#000', fontSize: 11, fontWeight: '900' },
   
+  cardOverlayGradient: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.35)', justifyContent: 'flex-end', padding: 20 },
   cardFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' },
   infoCol: { flex: 1 },
-  cardTitle: { color: '#FFF', fontSize: 24, fontWeight: '900', marginBottom: 6, textShadowColor: 'rgba(0,0,0,0.6)', textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 4 },
+  cardTitle: { color: '#FFF', fontSize: 22, fontWeight: '900', marginBottom: 6 },
   cardMeta: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   metaText: { color: '#E2E8F0', fontSize: 13, fontWeight: '700' },
   
-  ratingBadge: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'rgba(0,0,0,0.6)', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(255,215,0,0.3)' },
+  ratingBadge: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'rgba(0,0,0,0.6)', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(253,184,19,0.3)' },
   ratingText: { color: '#FFF', fontWeight: '800', fontSize: 13 },
   
   emptyContainer: { marginTop: 100, alignItems: 'center' },
