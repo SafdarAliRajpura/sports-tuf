@@ -148,13 +148,61 @@ export default function VenueDetailsScreen() {
         try {
             const userData = await AsyncStorage.getItem('userInfo');
             const user = userData ? JSON.parse(userData) : null;
-            if (!user?._id) return alert("Please login first.");
+            if (!user?._id) {
+                setLoading(false);
+                return alert("Authentication Required: Please login to reserve your slot.");
+            }
             const sSlots = [...selectedSlots].sort();
             const timeDisplay = sSlots.map(sid => dynamicSlots.find((s: any) => s.id === sid)?.label || sid).join(' & ');
             const priceVal = selectedSlots.length * parseInt(String(venueData.price).replace(/[^\d]/g, '') || '1500');
             const res = await apiClient.post('/api/payments/order', { amount: priceVal, bookingData: { turfName: venueData.title || title, sport: 'Multi', date: dates[selectedDate].fullDate, timeSlot: `${timeDisplay} (${selectedCourt || 'Main Arena'}) - 1h` } });
             if (res.data.success) { setCheckoutUrl(`${apiClient.defaults.baseURL}/api/payments/checkout/${res.data.order.id}`); setShowWebView(true); setLoading(false); }
-        } catch (e) { setLoading(false); alert("Payment Initialization Failed."); }
+        } catch (e: any) { 
+            setLoading(false); 
+            const errorMsg = e.response?.data?.message || "Payment Initialization Failed.";
+            alert(`Error: ${errorMsg}`);
+            console.error("Payment Error:", e.response?.data || e.message);
+        }
+    };
+
+    const submitReview = async () => {
+        if (!userComment.trim()) return alert("Please enter a comment for your review.");
+        if (submittingReview) return;
+        
+        setSubmittingReview(true);
+        try {
+            const userData = await AsyncStorage.getItem('userInfo');
+            const user = userData ? JSON.parse(userData) : null;
+            if (!user?._id) {
+                setSubmittingReview(false);
+                return alert("Authentication Required: Please login to leave a review.");
+            }
+            
+            const reviewData = {
+                venueId: id,
+                userId: user._id,
+                user: user.fullName || user.name || `${user.first_name || ''} ${user.last_name || ''}`.trim() || 'Athlete',
+                rating: userRating,
+                comment: userComment
+            };
+            
+            const res = await apiClient.post('/api/reviews', reviewData);
+            
+            if (res.data?.success) {
+                setReviews([res.data.data, ...reviews]);
+                setUserComment('');
+                setUserRating(5);
+                setShowReviewModal(false);
+                setTimeout(() => setShowReviewSuccess(true), 300);
+            } else {
+                alert(res.data?.message || "Failed to submit review.");
+            }
+        } catch (e: any) {
+            console.error("Submit Review Error:", e.response?.data || e.message);
+            alert(e.response?.data?.message || "Failed to submit review.");
+        } finally {
+            setSubmittingReview(false);
+        }
     };
 
     const submitCashBooking = async () => {
@@ -162,17 +210,70 @@ export default function VenueDetailsScreen() {
         try {
             const userData = await AsyncStorage.getItem('userInfo');
             const user = userData ? JSON.parse(userData) : null;
+            if (!user?._id) {
+                setLoading(false);
+                return alert("Authentication Required: Please login to reserve your slot.");
+            }
             const sSlots = [...selectedSlots].sort();
             const timeDisplay = sSlots.map(sid => dynamicSlots.find((s: any) => s.id === sid)?.label || sid).join(' & ');
             const priceVal = selectedSlots.length * parseInt(String(venueData.price).replace(/[^\d]/g, '') || '1500');
             await apiClient.post('/api/bookings', { userId: user?._id, turfName: venueData.title || title, sport: 'Multi', date: dates[selectedDate].fullDate, timeSlot: `${timeDisplay} (${selectedCourt || 'Main Arena'}) - 1h`, price: String(priceVal), status: 'Confirmed', color: 'bg-emerald-500' });
             setLoading(false); setShowPaymentModal(false); setShowSuccessModal(true); setSelectedSlots([]);
-        } catch (e) { setLoading(false); alert("Booking Failed."); }
+        } catch (e: any) { 
+            setLoading(false); 
+            const errorMsg = e.response?.data?.message || "Booking Failed.";
+            alert(`Error: ${errorMsg}`);
+            console.error("Booking Error:", e.response?.data || e.message);
+        }
     };
 
     const imageArray = useMemo(() => {
         return venueData?.images?.length > 0 ? venueData.images : [venueData?.image || 'https://images.unsplash.com/photo-1574629810360-7efbb1925713?q=80&w=600'];
     }, [venueData]);
+
+    const getQueryParam = (url: string, key: string) => {
+        const regex = new RegExp(`[?&]${key}=([^&]*)`);
+        const results = regex.exec(url);
+        return results === null ? '' : decodeURIComponent(results[1].replace(/\+/g, ' '));
+    };
+
+    const handleNavigationStateChange = async (navState: any) => {
+        const url = navState.url;
+        if (url.startsWith('footballturf://payment-success')) {
+            setShowWebView(false);
+            setLoading(true);
+            
+            const razorpay_payment_id = getQueryParam(url, 'razorpay_payment_id');
+            const razorpay_order_id = getQueryParam(url, 'razorpay_order_id');
+            const razorpay_signature = getQueryParam(url, 'razorpay_signature');
+            const bookingId = getQueryParam(url, 'bookingId');
+            
+            try {
+                const verifyRes = await apiClient.post('/api/payments/verify', {
+                    razorpay_order_id,
+                    razorpay_payment_id,
+                    razorpay_signature,
+                    bookingId
+                });
+                
+                setLoading(false);
+                if (verifyRes.data?.success) {
+                    setShowPaymentModal(false);
+                    setShowSuccessModal(true);
+                    setSelectedSlots([]);
+                    fetchBookedSlots();
+                } else {
+                    alert(verifyRes.data?.message || 'Payment Verification Failed!');
+                }
+            } catch (err: any) {
+                setLoading(false);
+                alert('Verification Error: ' + (err.response?.data?.message || err.message));
+            }
+        } else if (url.startsWith('footballturf://payment-cancel')) {
+            setShowWebView(false);
+            setLoading(false);
+        }
+    };
 
     return (
         <View style={styles.container}>
@@ -231,8 +332,103 @@ export default function VenueDetailsScreen() {
                 <Modal visible={true} transparent animationType="slide"><View style={styles.modalOverlay}><Pressable style={StyleSheet.absoluteFill} onPress={() => setShowPaymentModal(false)}><View style={styles.modalOverlaySolid} /></Pressable><Animated.View entering={SlideInDown} style={styles.paymentModalContainer}><View style={styles.modalHeader}><Text style={styles.modalTitle}>Checkout</Text><TouchableOpacity onPress={() => setShowPaymentModal(false)}><X color="#FFF" size={24} /></TouchableOpacity></View><View style={styles.orderSummaryBox}><Text style={styles.summaryValue}>₹{selectedSlots.length * parseInt(String(venueData.price).replace(/[^\d]/g, '') || '1500')}</Text><Text style={styles.summaryVenueText}>{venueData.title} • {selectedSlots.length} slot(s)</Text></View><TouchableOpacity onPress={() => setPaymentMethod('card')} style={[styles.paymentMethodCard, paymentMethod === 'card' && styles.paymentMethodCardActive]}><CreditCard size={20} color={paymentMethod === 'card' ? "#00FF00" : "#94A3B8"} /><Text style={[styles.paymentMethodTitle, paymentMethod === 'card' && styles.paymentMethodTitleActive]}>Razorpay</Text></TouchableOpacity><TouchableOpacity onPress={() => setPaymentMethod('cash')} style={[styles.paymentMethodCard, paymentMethod === 'cash' && styles.paymentMethodCardActive]}><Banknote size={20} color={paymentMethod === 'cash' ? "#00FF00" : "#94A3B8"} /><Text style={[styles.paymentMethodTitle, paymentMethod === 'cash' && styles.paymentMethodTitleActive]}>Pay at Arena</Text></TouchableOpacity><TouchableOpacity disabled={loading} style={[styles.confirmPayBtn, loading && styles.confirmPayBtnLoading]} onPress={handleConfirmPayment}><Text style={styles.confirmPayBtnText}>{loading ? 'PROCESSING...' : 'CONFIRM'}</Text></TouchableOpacity></Animated.View></View></Modal>
             )}
             
+            {showSuccessModal && (
+                <Modal visible={true} transparent animationType="fade">
+                    <View style={styles.modalOverlayBlur}>
+                        <Animated.View entering={ZoomIn} style={styles.successModalCard}>
+                            <View style={styles.successIconBox}>
+                                <CheckCircle color="#000" size={50} strokeWidth={2.5} />
+                            </View>
+                            <Text style={styles.successTitle}>ARENA SECURED</Text>
+                            <Text style={styles.successSubtitle}>Your match at {venueData.title} is confirmed. Gear up, Champion!</Text>
+                            
+                            <View style={styles.successDetailsBox}>
+                                <View style={styles.successDetailRow}>
+                                    <MapPin color="#00FF00" size={18} />
+                                    <Text style={styles.successDetailText}>{venueData.title}</Text>
+                                </View>
+                                <View style={[styles.successDetailRow, { marginBottom: 0 }]}>
+                                    <Target color="#00FF00" size={18} />
+                                    <Text style={styles.successDetailText}>{dates[selectedDate]?.fullDate}</Text>
+                                </View>
+                            </View>
+
+                            <TouchableOpacity 
+                                style={styles.successActionBtn} 
+                                onPress={() => { setShowSuccessModal(false); router.push('/(tabs)/home'); }}
+                            >
+                                <Text style={styles.successActionText}>VIEW DASHBOARD</Text>
+                            </TouchableOpacity>
+                        </Animated.View>
+                    </View>
+                </Modal>
+            )}
+
+            {showReviewModal && (
+                <Modal visible={true} transparent animationType="fade">
+                    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+                        <View style={styles.modalOverlayBlur}>
+                            <Animated.View entering={ZoomIn} style={styles.reviewModalCard}>
+                                <View style={styles.modalHeader}>
+                                    <Text style={styles.modalTitle}>Leave Feedback</Text>
+                                    <TouchableOpacity onPress={() => setShowReviewModal(false)}>
+                                        <X color="#FFF" size={24} />
+                                    </TouchableOpacity>
+                                </View>
+                                
+                                <View style={styles.ratingSelectRow}>
+                                    {[1, 2, 3, 4, 5].map((star) => (
+                                        <TouchableOpacity key={star} onPress={() => setUserRating(star)}>
+                                            <Star size={32} color={star <= userRating ? "#FDB813" : "#334155"} fill={star <= userRating ? "#FDB813" : "transparent"} />
+                                        </TouchableOpacity>
+                                    ))}
+                                </View>
+
+                                <TextInput
+                                    style={styles.reviewInput}
+                                    placeholder="Share your experience at this arena..."
+                                    placeholderTextColor="#475569"
+                                    multiline
+                                    value={userComment}
+                                    onChangeText={setUserComment}
+                                />
+
+                                <TouchableOpacity 
+                                    style={[styles.confirmPayBtn, submittingReview && styles.confirmPayBtnLoading]} 
+                                    onPress={submitReview}
+                                    disabled={submittingReview}
+                                >
+                                    <Text style={styles.confirmPayBtnText}>{submittingReview ? 'SUBMITTING...' : 'POST REVIEW'}</Text>
+                                </TouchableOpacity>
+                            </Animated.View>
+                        </View>
+                    </KeyboardAvoidingView>
+                </Modal>
+            )}
+
+            {showReviewSuccess && (
+                <Modal visible={true} transparent animationType="fade">
+                    <View style={styles.modalOverlayBlur}>
+                        <Animated.View entering={ZoomIn} style={styles.successModalCard}>
+                            <View style={[styles.successIconBox, { backgroundColor: '#FDB813', shadowColor: '#FDB813' }]}>
+                                <Star color="#000" size={50} strokeWidth={2.5} fill="#000" />
+                            </View>
+                            <Text style={styles.successTitle}>FEEDBACK LIVE</Text>
+                            <Text style={styles.successSubtitle}>Your intelligence report has been verified and added to the arena's community logs.</Text>
+                            
+                            <TouchableOpacity 
+                                style={[styles.successActionBtn, { backgroundColor: '#FDB813' }]} 
+                                onPress={() => setShowReviewSuccess(false)}
+                            >
+                                <Text style={styles.successActionText}>CONTINUE EXPLORING</Text>
+                            </TouchableOpacity>
+                        </Animated.View>
+                    </View>
+                </Modal>
+            )}
+
             {showWebView && (
-                <Modal visible={true} animationType="slide" onRequestClose={() => setShowWebView(false)}><View style={{ flex: 1, backgroundColor: '#070A14' }}><View style={[styles.modalHeader, { padding: 20, paddingTop: 50, backgroundColor: '#131C31' }]}><Text style={styles.modalTitle}>Secure Checkout</Text><TouchableOpacity onPress={() => setShowWebView(false)}><X color="#FFF" size={24} /></TouchableOpacity></View>{checkoutUrl ? (<WebView source={{ uri: checkoutUrl }} style={{ flex: 1 }} />) : null}</View></Modal>
+                <Modal visible={true} animationType="slide" onRequestClose={() => setShowWebView(false)}><View style={{ flex: 1, backgroundColor: '#070A14' }}><View style={[styles.modalHeader, { padding: 20, paddingTop: 50, backgroundColor: '#131C31' }]}><Text style={styles.modalTitle}>Secure Checkout</Text><TouchableOpacity onPress={() => setShowWebView(false)}><X color="#FFF" size={24} /></TouchableOpacity></View>{checkoutUrl ? (<WebView source={{ uri: checkoutUrl }} style={{ flex: 1 }} onNavigationStateChange={handleNavigationStateChange} />) : null}</View></Modal>
             )}
         </View>
     );
@@ -320,5 +516,20 @@ const styles = StyleSheet.create({
     confirmPayBtn: { backgroundColor: '#00FF00', padding: 20, borderRadius: 20, alignItems: 'center', marginTop: 20 },
     confirmPayBtnLoading: { opacity: 0.7 },
     confirmPayBtnText: { color: '#000', fontWeight: '900', fontSize: 16 },
-    inputLabel: { color: '#64748B', fontSize: 11, fontWeight: '800', marginBottom: 8, letterSpacing: 1 }
+    inputLabel: { color: '#64748B', fontSize: 11, fontWeight: '800', marginBottom: 8, letterSpacing: 1 },
+    // Review Modal Styles
+    reviewModalCard: { width: '100%', backgroundColor: '#0F172A', borderRadius: 30, padding: 25, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
+    ratingSelectRow: { flexDirection: 'row', justifyContent: 'center', gap: 10, marginVertical: 20 },
+    reviewInput: { backgroundColor: '#1E293B', borderRadius: 15, padding: 20, color: '#FFF', minHeight: 120, textAlignVertical: 'top', borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)', marginBottom: 20 },
+    // Premium Success Modal Styles
+    modalOverlayBlur: { flex: 1, backgroundColor: 'rgba(9, 14, 26, 0.95)', justifyContent: 'center', alignItems: 'center', padding: 20 },
+    successModalCard: { width: '100%', backgroundColor: '#0F172A', borderRadius: 30, padding: 30, alignItems: 'center', borderWidth: 1, borderColor: 'rgba(0, 255, 0, 0.2)', shadowColor: '#00FF00', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.15, shadowRadius: 30 },
+    successIconBox: { width: 90, height: 90, borderRadius: 45, backgroundColor: '#00FF00', justifyContent: 'center', alignItems: 'center', marginBottom: 25, shadowColor: '#00FF00', shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.5, shadowRadius: 15 },
+    successTitle: { color: '#FFF', fontSize: 26, fontWeight: '900', letterSpacing: 1, marginBottom: 10 },
+    successSubtitle: { color: '#94A3B8', fontSize: 15, textAlign: 'center', lineHeight: 22, marginBottom: 30 },
+    successDetailsBox: { width: '100%', backgroundColor: '#131C31', borderRadius: 20, padding: 20, marginBottom: 30, borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)' },
+    successDetailRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 16 },
+    successDetailText: { color: '#FFF', fontSize: 16, fontWeight: '700' },
+    successActionBtn: { width: '100%', backgroundColor: '#00FF00', paddingVertical: 18, borderRadius: 20, alignItems: 'center' },
+    successActionText: { color: '#000', fontSize: 15, fontWeight: '900', letterSpacing: 1 }
 });

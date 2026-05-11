@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
-import { Dimensions, Image, ImageBackground, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Dimensions, Image, ImageBackground, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, KeyboardAvoidingView, Platform, FlatList } from 'react-native';
 import Animated, { FadeIn, FadeOut, ZoomIn, FadeInRight } from 'react-native-reanimated';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import moment from 'moment';
@@ -230,26 +230,50 @@ export default function ArenaHomeScreen() {
   };
 
   const handleCreatePost = async () => {
-    if (!newPost.title || !newPost.content || isSubmitting) return;
+    if (!newPost.title.trim() || !newPost.content.trim()) {
+        return alert("Incomplete Data: Please provide both a topic and content for your discussion.");
+    }
+    if (isSubmitting) return;
     setIsSubmitting(true);
     try {
+        const userData = await AsyncStorage.getItem('userInfo');
+        const user = userData ? JSON.parse(userData) : null;
+        if (!user?._id) {
+            setIsSubmitting(false);
+            return alert("Authentication Required: Please login to publish a discussion.");
+        }
         await apiClient.post('/api/community/discussions', newPost);
         setNewPost({ title: '', content: '', category: 'General' });
         setIsCreatingPost(false);
         triggerRefresh();
-    } catch (e) { console.error('Post creation failed'); }
+    } catch (e: any) { 
+        console.error('Post creation failed', e.response?.data || e.message); 
+        alert(e.response?.data?.message || "Failed to publish post.");
+    }
     finally { setIsSubmitting(false); }
   };
 
   const handleCreateEvent = async () => {
-    if (!newEvent.title || !newEvent.date || !newEvent.location || isSubmitting) return;
+    if (!newEvent.title.trim() || !newEvent.date || !newEvent.location.trim()) {
+        return alert("Incomplete Data: Please fill out the title, date, and location for your event.");
+    }
+    if (isSubmitting) return;
     setIsSubmitting(true);
     try {
+        const userData = await AsyncStorage.getItem('userInfo');
+        const user = userData ? JSON.parse(userData) : null;
+        if (!user?._id) {
+            setIsSubmitting(false);
+            return alert("Authentication Required: Please login to host an event.");
+        }
         await apiClient.post('/api/community/events', newEvent);
         setNewEvent({ title: '5v5 Friendly Match', date: new Date().toISOString(), location: '', maxAttendees: '10' });
         setIsCreatingEvent(false);
         triggerRefresh();
-    } catch (e) { console.error('Event creation failed'); }
+    } catch (e: any) { 
+        console.error('Event creation failed', e.response?.data || e.message); 
+        alert(e.response?.data?.message || "Failed to create event.");
+    }
     finally { setIsSubmitting(false); }
   };
 
@@ -290,6 +314,79 @@ export default function ArenaHomeScreen() {
         ))}
       </View>
 
+      {activeTab === 'Community' ? (
+        <FlatList
+          data={activeCommunitySubTab === 'Discussions' ? discussions : activeCommunitySubTab === 'Events' ? events : leaderboard.slice(0, 10)}
+          keyExtractor={(item, idx) => item._id || idx.toString()}
+          contentContainerStyle={{ paddingBottom: 120, paddingHorizontal: 20 }}
+          showsVerticalScrollIndicator={false}
+          ListHeaderComponent={
+            <View style={{ marginTop: 10 }}>
+              <View style={[styles.communityHero, { marginHorizontal: -20 }]}>
+                <View style={styles.heroFlexRow}>
+                  <View style={{ flex: 1 }}>
+                    <View style={styles.livePulseRow}>
+                      <View style={styles.pulseDot} />
+                      <Text style={styles.livePulseText}>COMMUNITY LIVE HUB</Text>
+                    </View>
+                    <Text style={styles.communityHeroTitle}>
+                      CONNECT.{"\n"}
+                      <Text style={styles.heroAccent}>COMPETE.</Text>{"\n"}
+                      CONQUER.
+                    </Text>
+                  </View>
+                  <View style={styles.pulseMetricsBox}>
+                    <Text style={styles.pulseCountText}>{platformStats.users?.toLocaleString() || '0'}+</Text>
+                    <Text style={styles.pulseLabelText}>ACTIVE ATHLETES</Text>
+                    <View style={styles.miniAvatarStack}>
+                      {(platformStats.recentAvatars || [1, 2, 3]).slice(0, 3).map((av: any, i: number) => (
+                        <Image key={i} source={{ uri: typeof av === 'string' ? av : `https://api.dicebear.com/7.x/avataaars/png?seed=${i}` }} style={[styles.miniStackAvatar, { marginLeft: i === 0 ? 0 : -10 }]} />
+                      ))}
+                    </View>
+                  </View>
+                </View>
+                <Text style={styles.communityHeroSub}>Join the ultimate sports ecosystem. Find teammates, discuss strategies, and participate in exclusive events.</Text>
+              </View>
+
+              <View style={[styles.communitySubTabRow, { marginHorizontal: -20 }]}>
+                {['Discussions', 'Events', 'Leaderboard'].map(sub => (
+                  <TouchableOpacity key={sub} onPress={() => setActiveCommunitySubTab(sub)} style={[styles.communitySubTab, activeCommunitySubTab === sub && styles.activeCommunitySubTab]}>
+                    <Text style={[styles.communitySubTabText, activeCommunitySubTab === sub && styles.activeCommunitySubTabText]}>{sub === 'Events' ? 'GLOBAL EVENTS' : sub.toUpperCase()}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              {activeCommunitySubTab === 'Leaderboard' && (
+                <View style={styles.sectionHeader}>
+                  <View style={styles.sectionTitleRow}><Crown color="#FFD700" size={20} fill="#FFD700" /><Text style={styles.sectionTitle}>GLOBAL LEADERBOARD</Text></View>
+                </View>
+              )}
+              {activeCommunitySubTab === 'Discussions' && (
+                <View style={styles.sectionHeader}>
+                  <View style={styles.sectionTitleRow}><MessageSquare color="#00FF00" size={20} /><Text style={styles.sectionTitle}>LIVE DISCUSSIONS</Text></View>
+                  <TouchableOpacity style={styles.addPostButton} onPress={() => setIsCreatingPost(true)}><Feather name="plus" size={16} color="#000" /></TouchableOpacity>
+                </View>
+              )}
+              {activeCommunitySubTab === 'Events' && (
+                <View style={styles.sectionHeader}>
+                  <View style={styles.sectionTitleRow}><Calendar color="#00FF00" size={20} /><Text style={styles.sectionTitle}>GLOBAL EVENTS</Text></View>
+                  <TouchableOpacity style={styles.addPostButton} onPress={() => setIsCreatingEvent(true)}><Feather name="plus" size={16} color="#000" /></TouchableOpacity>
+                </View>
+              )}
+            </View>
+          }
+          ListEmptyComponent={<Text style={styles.emptyStateText}>No data available at this time.</Text>}
+          renderItem={({ item, index }) => {
+            if (activeCommunitySubTab === 'Leaderboard') {
+              return <PlayerListItem rank={index + 1} name={item.fullName || item.name || `${item.first_name} ${item.last_name}`} points={item.xp || item.points || 0} avatar={getAvatarUrl(item.avatar || item.user_profile)} role={item.primaryRole || 'Athlete'} />;
+            }
+            if (activeCommunitySubTab === 'Discussions') {
+              return <DiscussionListItem discussion={item} userId={user?._id} onPress={() => setSelectedDiscussion(item)} onLike={() => handleLike(item._id)} />;
+            }
+            return <EventListItem event={item} userId={user?._id} onJoin={() => handleJoinEvent(item._id)} />;
+          }}
+        />
+      ) : (
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
         {activeTab === 'Tournaments' ? (
           <View style={{ marginTop: 10 }}>
@@ -298,131 +395,6 @@ export default function ArenaHomeScreen() {
                {tournaments.length > 0 ? tournaments.map(t => <TournamentListItem key={t._id} tournament={t} />) : <Text style={{ color: '#94A3B8', fontSize: 13, marginTop: 20, textAlign: 'center' }}>No tournaments found.</Text>}
             </View>
           </View>
-        ) : activeTab === 'Community' ? (
-          <View style={{ marginTop: 10 }}>
-            {/* Community Hero Section - Mirrored from Web */}
-            <View style={styles.communityHero}>
-              <View style={styles.heroFlexRow}>
-                <View style={{ flex: 1 }}>
-                  <View style={styles.livePulseRow}>
-                    <View style={styles.pulseDot} />
-                    <Text style={styles.livePulseText}>COMMUNITY LIVE HUB</Text>
-                  </View>
-                  <Text style={styles.communityHeroTitle}>
-                    CONNECT.{"\n"}
-                    <Text style={styles.heroAccent}>COMPETE.</Text>{"\n"}
-                    CONQUER.
-                  </Text>
-                </View>
-                <View style={styles.pulseMetricsBox}>
-                  <Text style={styles.pulseCountText}>{platformStats.users?.toLocaleString() || '0'}+</Text>
-                  <Text style={styles.pulseLabelText}>ACTIVE ATHLETES</Text>
-                  <View style={styles.miniAvatarStack}>
-                    {(platformStats.recentAvatars || [1, 2, 3]).slice(0, 3).map((av: any, i: number) => (
-                      <Image 
-                        key={i} 
-                        source={{ uri: typeof av === 'string' ? av : `https://api.dicebear.com/7.x/avataaars/png?seed=${i}` }} 
-                        style={[styles.miniStackAvatar, { marginLeft: i === 0 ? 0 : -10 }]} 
-                      />
-                    ))}
-                  </View>
-                </View>
-              </View>
-              <Text style={styles.communityHeroSub}>
-                Join the ultimate sports ecosystem. Find teammates, discuss strategies, and participate in exclusive events.
-              </Text>
-            </View>
-
-
-            <View style={styles.communitySubTabRow}>
-              {['Discussions', 'Events', 'Leaderboard'].map(sub => (
-                <TouchableOpacity 
-                  key={sub} 
-                  onPress={() => setActiveCommunitySubTab(sub)} 
-                  style={[styles.communitySubTab, activeCommunitySubTab === sub && styles.activeCommunitySubTab]}
-                >
-                  <Text style={[styles.communitySubTabText, activeCommunitySubTab === sub && styles.activeCommunitySubTabText]}>
-                    {sub === 'Events' ? 'GLOBAL EVENTS' : sub.toUpperCase()}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-
-            {activeCommunitySubTab === 'Leaderboard' ? (
-              <View style={{ paddingHorizontal: 20, paddingBottom: 120 }}>
-                <View style={styles.sectionHeader}>
-                  <View style={styles.sectionTitleRow}>
-                    <Crown color="#FFD700" size={20} fill="#FFD700" />
-                    <Text style={styles.sectionTitle}>GLOBAL LEADERBOARD</Text>
-                  </View>
-                </View>
-                {leaderboard.length > 0 ? (
-                  leaderboard.slice(0, 10).map((player, idx) => (
-                    <PlayerListItem 
-                      key={player._id || idx} 
-                      rank={idx + 1} 
-                      name={player.fullName || player.name || `${player.first_name} ${player.last_name}`} 
-                      points={player.xp || player.points || 0} 
-                      avatar={getAvatarUrl(player.avatar || player.user_profile)} 
-                      role={player.primaryRole || 'Athlete'}
-                    />
-                  ))
-                ) : (
-                  <Text style={styles.emptyStateText}>Loading rankings...</Text>
-                )}
-              </View>
-            ) : activeCommunitySubTab === 'Discussions' ? (
-              <View style={{ paddingHorizontal: 20, paddingBottom: 120 }}>
-                <View style={styles.sectionHeader}>
-                  <View style={styles.sectionTitleRow}>
-                    <MessageSquare color="#00FF00" size={20} />
-                    <Text style={styles.sectionTitle}>LIVE DISCUSSIONS</Text>
-                  </View>
-                  <TouchableOpacity style={styles.addPostButton} onPress={() => setIsCreatingPost(true)}>
-                    <Feather name="plus" size={16} color="#000" />
-                  </TouchableOpacity>
-                </View>
-                {discussions.length > 0 ? (
-                  discussions.map((disc, idx) => (
-                    <DiscussionListItem 
-                        key={disc._id || idx} 
-                        discussion={disc} 
-                        userId={user?._id}
-                        onPress={() => setSelectedDiscussion(disc)}
-                        onLike={() => handleLike(disc._id)}
-                    />
-                  ))
-                ) : (
-                  <Text style={styles.emptyStateText}>No active discussions found.</Text>
-                )}
-              </View>
-            ) : (
-                <View style={{ paddingHorizontal: 20, paddingBottom: 120 }}>
-                    <View style={styles.sectionHeader}>
-                      <View style={styles.sectionTitleRow}>
-                        <Calendar color="#00FF00" size={20} />
-                        <Text style={styles.sectionTitle}>GLOBAL EVENTS</Text>
-                      </View>
-                      <TouchableOpacity style={styles.addPostButton} onPress={() => setIsCreatingEvent(true)}>
-                        <Feather name="plus" size={16} color="#000" />
-                      </TouchableOpacity>
-                    </View>
-                    {events.length > 0 ? (
-                      events.map((event, idx) => (
-                        <EventListItem 
-                            key={event._id || idx} 
-                            event={event} 
-                            userId={user?._id} 
-                            onJoin={() => handleJoinEvent(event._id)}
-                        />
-                      ))
-                    ) : (
-                      <Text style={styles.emptyStateText}>No upcoming events scheduled.</Text>
-                    )}
-                </View>
-            )}
-          </View>
-
         ) : (
           <>
             <View style={styles.gridContainer}>
@@ -437,21 +409,15 @@ export default function ArenaHomeScreen() {
             </View>
 
             <View style={styles.sectionHeader}><View style={styles.sectionTitleRow}><Crown color="#FFD700" size={20} fill="#FFD700" /><Text style={styles.sectionTitle}>Top Performers</Text></View><TouchableOpacity onPress={() => setActiveTab('Community')}><Text style={styles.seeAllText}>VIEW ALL</Text></TouchableOpacity></View>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalScroll}>
-              {leaderboard.map((player, idx) => <PlayerCard key={player._id || idx} rank={idx + 1} name={player.fullName || player.name || `${player.first_name} ${player.last_name}`} points={player.xp || player.points || 0} avatar={getAvatarUrl(player.avatar || player.user_profile)} tag={idx === 0 ? 'MVP' : (idx < 3 ? 'PRO' : null)} />)}
-            </ScrollView>
+            <FlatList horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalScroll} data={leaderboard.slice(0, 10)} keyExtractor={(item, idx) => item._id || idx.toString()} renderItem={({item, index}) => <PlayerCard rank={index + 1} name={item.fullName || item.name || `${item.first_name} ${item.last_name}`} points={item.xp || item.points || 0} avatar={getAvatarUrl(item.avatar || item.user_profile)} tag={index === 0 ? 'MVP' : (index < 3 ? 'PRO' : null)} />} />
     
             <View style={styles.sectionHeader}><View style={styles.sectionTitleRow}><Zap color="#FF4500" size={20} fill="#FF4500" /><Text style={styles.sectionTitle}>Trending Venues</Text></View></View>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalScroll}>
-              {venues.map((venue) => <TrendingCard key={venue._id} id={venue._id} title={venue.name} price={venue.price} image={venue.images?.[0] || venue.image} rating={venue.rating || "0.0"} />)}
-            </ScrollView>
+            <FlatList horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalScroll} data={venues} keyExtractor={(item) => item._id} renderItem={({item}) => <TrendingCard id={item._id} title={item.name} price={item.price} image={item.images?.[0] || item.image} rating={item.rating || "0.0"} />} />
     
             <View style={styles.offerBanner}><View style={styles.offerContent}><Text style={styles.offerTitle}>EARN XP POINTS</Text><Text style={styles.offerSubtitle}>Get rewards on every booking</Text></View><Trophy color="#00FF00" size={32} /></View>
     
             <View style={styles.sectionHeader}><Text style={styles.sectionTitle}>Venues around you</Text><TouchableOpacity onPress={() => router.push('/explore')}><Text style={styles.seeAllText}>VIEW ALL</Text></TouchableOpacity></View>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalScroll}>
-              {venues.map((venue) => <VenueCard key={`around-${venue._id}`} id={venue._id} title={venue.name} image={venue.images?.[0] || venue.image} dist={venue.location} rating={venue.rating || "0.0"} price={venue.price} />)}
-            </ScrollView>
+            <FlatList horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalScroll} data={venues} keyExtractor={(item) => `around-${item._id}`} renderItem={({item}) => <VenueCard id={item._id} title={item.name} image={item.images?.[0] || item.image} dist={item.location} rating={item.rating || "0.0"} price={item.price} />} />
 
             <View style={styles.sectionHeader}><Text style={styles.sectionTitle}>Elite Tournaments</Text><TouchableOpacity onPress={() => setActiveTab('Tournaments')}><Text style={styles.seeAllText}>VIEW ALL</Text></TouchableOpacity></View>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingLeft: 20, paddingRight: 20, marginBottom: 40 }}>
@@ -460,6 +426,7 @@ export default function ArenaHomeScreen() {
           </>
         )}
       </ScrollView>
+      )}
       <NotificationModal visible={showNotifications} onClose={() => setShowNotifications(false)} />
 
       {/* Discussion Detail Modal */}
@@ -542,8 +509,10 @@ export default function ArenaHomeScreen() {
 
       {/* Create Discussion Modal */}
       <Modal visible={isCreatingPost} transparent animationType="fade">
-          <View style={styles.modalOverlayBlur}>
-              <Animated.View entering={ZoomIn} style={styles.createPostModal}>
+          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+              <ScrollView contentContainerStyle={{ flexGrow: 1 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+                  <View style={styles.modalOverlayBlur}>
+                      <Animated.View entering={ZoomIn} style={styles.createPostModal}>
                   <View style={styles.createPostHeader}>
                       <Text style={styles.createPostTitle}>NEW DISCUSSION</Text>
                       <TouchableOpacity onPress={() => setIsCreatingPost(false)}>
@@ -586,6 +555,8 @@ export default function ArenaHomeScreen() {
                   </TouchableOpacity>
               </Animated.View>
           </View>
+          </ScrollView>
+          </KeyboardAvoidingView>
       </Modal>
 
       {/* Create Event Modal */}
@@ -600,7 +571,7 @@ export default function ArenaHomeScreen() {
                       <View style={{ width: 24 }} />
                   </View>
 
-                  <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 25, paddingBottom: 100 }}>
+                  <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 25, paddingBottom: 100 }} keyboardShouldPersistTaps="handled">
                       
                       <View style={styles.livePreviewSection}>
                           <Text style={styles.previewLabel}>LIVE PREVIEW</Text>
