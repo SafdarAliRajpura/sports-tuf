@@ -37,7 +37,7 @@ export default function LoginScreen() {
         errorMsg = 'Password must be at least 6 characters';
       }
     }
-    setErrors(prev => ({ ...prev, [field]: errorMsg }));
+    setErrors(prev => ({ zprev, [field]: errorMsg }));
   };
 
 
